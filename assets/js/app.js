@@ -397,3 +397,23 @@ function formatCurrency(value) {
         maximumFractionDigits: 2
     });
 }
+
+// Adicione no início do arquivo
+document.addEventListener('DOMContentLoaded', function() {
+    // Adiciona classe de animação aos cards
+    const cards = document.querySelectorAll('.card');
+    cards.forEach(card => {
+        card.classList.add('fade-in');
+    });
+
+    // Adiciona efeito de loading
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(button => {
+        button.addEventListener('click', function() {
+            this.classList.add('loading');
+            setTimeout(() => {
+                this.classList.remove('loading');
+            }, 1000);
+        });
+    });
+});

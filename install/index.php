@@ -50,10 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 `password` varchar(255) NOT NULL,
                 `role` enum('admin','manager','seller') NOT NULL DEFAULT 'seller',
                 `status` enum('active','inactive') NOT NULL DEFAULT 'active',
+                `landing_page_name` varchar(255) DEFAULT NULL,
+                `whatsapp_token` varchar(255) DEFAULT NULL,
                 `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (`id`),
-                UNIQUE KEY `email` (`email`)
+                UNIQUE KEY `email` (`email`),
+                UNIQUE KEY `unique_landing_page` (`landing_page_name`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             
             // Tabela de planos

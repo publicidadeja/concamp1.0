@@ -86,8 +86,22 @@ $csrf_token = createCsrfToken();
                 <label for="landing_page_name" class="form-label">Nome da Landing Page</label>
                 <input type="text" class="form-control" id="landing_page_name" name="landing_page_name" value="<?php echo $user['landing_page_name'] ?? ''; ?>" required>
                 <small class="form-text text-muted">
-                    Escolha um nome único para a sua landing page (ex: seunome). A URL será: <?php echo url('lp/'); ?><span id="lp-preview">seunome</span>
-                </small>
+    Escolha um nome único para a sua landing page (ex: seunome). A URL será: <?php echo url('index.php?route=lp/'); ?><span id="lp-preview">seunome</span>
+</small>
+<?php if (!empty($user['landing_page_name'])): ?>
+    <hr class="my-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <p class="mb-0">Sua Landing Page:</p>
+            <a href="<?php echo url('index.php?route=lp/' . $user['landing_page_name']); ?>" target="_blank" class="text-decoration-none">
+                <?php echo url('index.php?route=lp/' . $user['landing_page_name']); ?>
+            </a>
+        </div>
+        <a href="<?php echo url('index.php?route=lp/' . $user['landing_page_name']); ?>" target="_blank" class="btn btn-success">
+            <i class="fas fa-external-link-alt me-2"></i>Abrir Landing Page
+        </a>
+    </div>
+<?php endif; ?>
             </div>
 
             <div class="mb-3">

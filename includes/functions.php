@@ -72,8 +72,14 @@ function url($path = '') {
  * Redirecionar para outra página
  */
 function redirect($path) {
-    header('Location: ' . url($path));
-    exit;
+    if (!headers_sent()) {
+        header('Location: ' . url($path));
+        exit;
+    } else {
+        echo '<script>window.location.href="' . url($path) . '";</script>';
+        echo '<noscript><meta http-equiv="refresh" content="0;url=' . url($path) . '"></noscript>';
+        exit;
+    }
 }
 
 /**

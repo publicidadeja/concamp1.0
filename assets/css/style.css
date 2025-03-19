@@ -1,0 +1,508 @@
+/* 
+ * ConCamp - Sistema de Contratos Premiados
+ * Estilos gerais do site
+ */
+
+/* Estilos básicos */
+body {
+    font-family: 'Poppins', sans-serif;
+    color: #333;
+    background-color: #f8f9fa;
+    line-height: 1.6;
+}
+
+a {
+    color: #0d6efd;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+a:hover {
+    color: #0a58ca;
+}
+
+.btn {
+    border-radius: 4px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0a58ca;
+    border-color: #0a58ca;
+}
+
+.btn-outline-primary {
+    color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-outline-primary:hover {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+
+/* Header */
+.site-header {
+    background-color: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand img {
+    max-height: 40px;
+}
+
+.navbar-nav .nav-link {
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+}
+
+.navbar-nav .nav-item.active .nav-link {
+    color: #0d6efd;
+}
+
+/* Hero section */
+.hero-section {
+    padding: 80px 0;
+    background-color: #f1f8ff;
+    background-image: url('../img/hero-bg.jpg');
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.hero-section::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 0;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 1;
+    color: #fff;
+}
+
+.hero-content h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+}
+
+.hero-content p {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+}
+
+/* Cards */
+.card {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-title {
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    font-weight: 600;
+}
+
+/* Features Section */
+.features-section {
+    padding: 60px 0;
+}
+
+.feature-card {
+    text-align: center;
+    padding: 30px 20px;
+}
+
+.feature-icon {
+    width: 80px;
+    height: 80px;
+    background-color: #f1f8ff;
+    color: #0d6efd;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 2rem;
+}
+
+/* Steps Section */
+.steps-section {
+    padding: 60px 0;
+    background-color: #f8f9fa;
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.step-number {
+    width: 50px;
+    height: 50px;
+    background-color: #0d6efd;
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+/* Formulários */
+.form-control {
+    border-radius: 4px;
+    padding: 0.6rem 1rem;
+    border: 1px solid #ced4da;
+    font-size: 0.95rem;
+}
+
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+/* Login & Registro */
+.auth-container {
+    max-width: 400px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.auth-header h3 {
+    font-weight: 600;
+    color: #0d6efd;
+}
+
+.auth-form .form-group {
+    margin-bottom: 20px;
+}
+
+.auth-links {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.9rem;
+}
+
+/* Simulador */
+.simulator-container {
+    max-width: 700px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.simulator-step {
+    margin-bottom: 30px;
+    display: none;
+}
+
+.simulator-step.active {
+    display: block;
+}
+
+.simulator-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 30px;
+}
+
+.simulator-result {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #f1f8ff;
+    border-radius: 8px;
+    border-left: 5px solid #0d6efd;
+}
+
+.result-item {
+    margin-bottom: 10px;
+}
+
+.result-item strong {
+    font-weight: 600;
+}
+
+/* Benefícios do produto */
+.benefits-section {
+    padding: 60px 0;
+}
+
+.benefit-item {
+    display: flex;
+    margin-bottom: 30px;
+}
+
+.benefit-icon {
+    width: 60px;
+    height: 60px;
+    background-color: #f1f8ff;
+    color: #0d6efd;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-right: 20px;
+    flex-shrink: 0;
+}
+
+.benefit-content h4 {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+/* Seção de depoimentos */
+.testimonials-section {
+    padding: 60px 0;
+    background-color: #f8f9fa;
+}
+
+.testimonial-card {
+    text-align: center;
+    padding: 30px;
+}
+
+.testimonial-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    overflow: hidden;
+}
+
+.testimonial-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.testimonial-text {
+    font-style: italic;
+    margin-bottom: 20px;
+    color: #555;
+}
+
+.testimonial-name {
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.testimonial-role {
+    color: #777;
+    font-size: 0.9rem;
+}
+
+/* Footer */
+.site-footer {
+    color: #555;
+}
+
+.site-footer h5 {
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.site-footer ul li {
+    margin-bottom: 10px;
+}
+
+.list-inline-item {
+    margin-right: 15px;
+}
+
+/* 404 Page */
+.error-container {
+    text-align: center;
+    padding: 80px 0;
+}
+
+.error-code {
+    font-size: 6rem;
+    font-weight: 700;
+    color: #0d6efd;
+    margin-bottom: 20px;
+}
+
+.error-text {
+    font-size: 1.5rem;
+    margin-bottom: 30px;
+    color: #555;
+}
+
+/* Media Queries */
+@media (max-width: 767.98px) {
+    .hero-content h1 {
+        font-size: 2rem;
+    }
+    
+    .hero-content p {
+        font-size: 1rem;
+    }
+    
+    .feature-card, .step-item {
+        margin-bottom: 30px;
+    }
+    
+    .benefit-item {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .benefit-icon {
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .hero-section {
+        padding: 60px 0;
+    }
+    
+    .auth-container, .simulator-container {
+        padding: 20px;
+    }
+    
+    .simulator-buttons {
+        flex-direction: column;
+    }
+    
+    .simulator-buttons .btn {
+        margin-bottom: 10px;
+    }
+}
+
+/* Animações */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.slide-up {
+    animation: slideUp 0.5s ease-in-out;
+}
+
+/* Estilização para mensagens de erro e sucesso */
+.alert {
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: none;
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+.alert-info {
+    background-color: #cff4fc;
+    color: #055160;
+}
+
+/* Classes de utilidade */
+.text-primary {
+    color: #0d6efd !important;
+}
+
+.bg-primary {
+    background-color: #0d6efd !important;
+}
+
+.border-primary {
+    border-color: #0d6efd !important;
+}
+
+.rounded {
+    border-radius: 8px !important;
+}
+
+.shadow-sm {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+}
+
+.shadow {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+.p-lg {
+    padding: 2rem !important;
+}
+
+.my-lg {
+    margin-top: 3rem !important;
+    margin-bottom: 3rem !important;
+}
+
+.py-lg {
+    padding-top: 3rem !important;
+    padding-bottom: 3rem !important;
+}

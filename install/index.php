@@ -59,12 +59,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Tabela de planos
             $conn->exec("CREATE TABLE IF NOT EXISTS `plans` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,
+                `name` varchar(255) NOT NULL,
                 `plan_type` enum('car','motorcycle') NOT NULL,
                 `model` varchar(255) DEFAULT NULL,
                 `credit_value` decimal(10,2) NOT NULL,
                 `term` int(11) NOT NULL,
                 `first_installment` decimal(10,2) NOT NULL,
                 `other_installments` decimal(10,2) NOT NULL,
+                `admin_fee` decimal(10,2) DEFAULT '0.00',
                 `active` tinyint(1) NOT NULL DEFAULT '1',
                 `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -215,19 +217,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $plans = array_merge($cars_60, $cars_80, $motos_60, $motos_72);
             
             $stmt = $conn->prepare("INSERT INTO `plans` 
-                (`plan_type`, `model`, `credit_value`, `term`, `first_installment`, `other_installments`) 
-                VALUES (:type, :model, :credit, :term, :first, :other)");
-            
-            foreach ($plans as $plan) {
-                $stmt->execute([
-                    'type' => $plan[0],
-                    'model' => $plan[1],
-                    'credit' => $plan[2],
-                    'term' => $plan[3],
-                    'first' => $plan[4],
-                    'other' => $plan[5]
-                ]);
-            }
+    (`name`, `plan_type`, `model`, `credit_value`, `term`, `first_installment`, `other_installments`, `admin_fee`) 
+    VALUES (:name, :type, :model, :credit, :term, :first, :other, :admin_fee)");
+
+foreach ($plans as $plan) {
+    $plan_name = $plan[0] === 'car' ? 
+        "Plano Carro " . number_format($plan[2], 2, ',', '.') . " - " . $plan[3] . "x" :
+        $plan[1] . " - " . $plan[3] . "x";
+    
+    $stmt->execute([
+        'name' => $plan_name,
+        'type' => $plan[0],
+        'model' => $plan[1],
+        'credit' => $plan[2],
+        'term' => $plan[3],
+        'first' => $plan[4],
+        'other' => $plan[5],
+        'admin_fee' => 0.00 // Valor padrão para taxa administrativa
+    ]);
+}
+
+// Inserir configurações padrão
+$default_settings = [
+    ['company_name', 'ConCamp'],
+    ['whatsapp_token', $whatsapp_token],
+    ['default_consultant', $admin_name],
+    ['default_message_template', $default_message],
+    ['site_title', 'ConCamp - Sistema de Gestão de Consórcios'],
+    ['leads_per_page', '10'],
+    ['enable_whatsapp', '1'],
+    ['notification_email', $admin_email]
+];
+
+$stmt = $conn->prepare("INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES (:key, :value)");
+foreach ($default_settings as $setting) {
+    $stmt->execute(['key' => $setting[0], 'value' => $setting[1]]);
+}
+
+// Inserir templates de mensagem adicionais
+$message_templates = [
+    [
+        'name' => 'Mensagem de Boas-vindas',
+        'category' => 'follow_up',
+        'content' => "Olá {nome}! Seja bem-vindo(a) à ConCamp!\n\nSou {nome_consultor}, seu consultor(a) dedicado(a)..."
+    ],
+    [
+        'name' => 'Lembrete de Reunião',
+        'category' => 'meeting',
+        'content' => "Olá {nome}! Confirmando nossa reunião para {data_reuniao}..."
+    ]
+    // Adicione mais templates conforme necessário
+];
+
+$stmt = $conn->prepare("INSERT INTO `message_templates` (`name`, `category`, `content`) VALUES (:name, :category, :content)");
+foreach ($message_templates as $template) {
+    $stmt->execute([
+        'name' => $template['name'],
+        'category' => $template['category'],
+        'content' => $template['content']
+    ]);
+}
+
+// Após cada operação de criação de tabela
+if (!$result) {
+    throw new PDOException("Erro ao criar tabela: " . implode(" ", $conn->errorInfo()));
+}
             
             // Inserir modelo de mensagem padrão para simulação
             $default_message = "Olá {nome}! Aqui está sua simulação de Contrato Premiado ConCamp:

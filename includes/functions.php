@@ -25,6 +25,9 @@ function getConnection() {
  * Formatar número para moeda brasileira
  */
 function formatCurrency($value) {
+    if ($value === null) {
+        return '0,00';
+    }
     return number_format($value, 2, ',', '.');
 }
 
@@ -222,9 +225,20 @@ function getPlans($type, $term = null) {
  */
 function getPlanById($id) {
     $conn = getConnection();
-    $stmt = $conn->prepare("SELECT * FROM plans WHERE id = :id");
-    $stmt->execute(['id' => $id]);
+    $stmt = $conn->prepare("SELECT 
+        id,
+        COALESCE(name, '') as name,
+        plan_type,
+        credit_value,
+        term,
+        first_installment,
+        other_installments,
+        COALESCE(admin_fee, 0) as admin_fee,
+        active
+    FROM plans 
+    WHERE id = :id");
     
+    $stmt->execute(['id' => $id]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 

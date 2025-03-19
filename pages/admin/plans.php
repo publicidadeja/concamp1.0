@@ -172,7 +172,17 @@ $filter_term = sanitize($_GET['term'] ?? '');
 $filter_active = isset($_GET['active']) ? sanitize($_GET['active']) : '';
 
 $conn = getConnection();
-$sql = "SELECT * FROM plans WHERE 1=1";
+$sql = "SELECT 
+    id,
+    COALESCE(name, '') as name,
+    plan_type,
+    credit_value,
+    term,
+    first_installment,
+    other_installments,
+    COALESCE(admin_fee, 0) as admin_fee,
+    active 
+FROM plans WHERE 1=1";
 $params = [];
 
 if (!empty($filter_type)) {

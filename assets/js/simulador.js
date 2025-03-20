@@ -70,10 +70,16 @@ document.addEventListener('DOMContentLoaded', function() {
       const cardBody = document.createElement('div');
       cardBody.className = 'card-body text-center';
       
-      const title = document.createElement('h5');
-      title.textContent = term + ' meses';
+      const valueDiv = document.createElement('div');
+      valueDiv.className = 'term-value';
+      valueDiv.textContent = term;
       
-      cardBody.appendChild(title);
+      const unit = document.createElement('div');
+      unit.className = 'term-unit';
+      unit.textContent = 'meses';
+      
+      cardBody.appendChild(valueDiv);
+      cardBody.appendChild(unit);
       card.appendChild(cardBody);
       col.appendChild(card);
       termOptions.appendChild(col);
@@ -121,16 +127,21 @@ document.addEventListener('DOMContentLoaded', function() {
       const cardBody = document.createElement('div');
       cardBody.className = 'card-body text-center';
       
-      const title = document.createElement('h5');
-      title.textContent = 'R$ ' + formatCurrency(plan.credit_value);
+      const valueDiv = document.createElement('div');
+      valueDiv.className = 'credit-value';
+      valueDiv.textContent = 'R$ ' + formatCurrency(plan.credit_value);
       
-      const subtitle = document.createElement('p');
-      subtitle.className = 'mb-0';
-      subtitle.innerHTML = '<small>1ª de R$ ' + formatCurrency(plan.first_installment) + '<br>' +
-                          'Demais de R$ ' + formatCurrency(plan.other_installments) + '</small>';
+      const installmentDiv = document.createElement('div');
+      installmentDiv.className = 'installment';
+      installmentDiv.textContent = '1ª de R$ ' + formatCurrency(plan.first_installment);
       
-      cardBody.appendChild(title);
-      cardBody.appendChild(subtitle);
+      const otherInstallments = document.createElement('div');
+      otherInstallments.className = 'other-installments';
+      otherInstallments.textContent = 'Demais de R$ ' + formatCurrency(plan.other_installments);
+      
+      cardBody.appendChild(valueDiv);
+      cardBody.appendChild(installmentDiv);
+      cardBody.appendChild(otherInstallments);
       card.appendChild(cardBody);
       col.appendChild(card);
       creditOptions.appendChild(col);
@@ -190,11 +201,20 @@ document.addEventListener('DOMContentLoaded', function() {
   form.addEventListener('submit', function(e) {
     const requiredFields = form.querySelectorAll('[required]');
     let valid = true;
+    let firstInvalidField = null;
+    
+    // Remover alertas anteriores
+    document.querySelectorAll('.validation-message').forEach(el => el.remove());
     
     requiredFields.forEach(field => {
       if (!field.value.trim()) {
         valid = false;
         field.classList.add('is-invalid');
+        
+        // Adicionar mensagem de erro
+        addValidationMessage(field, 'Este campo é obrigatório');
+        
+        if (!firstInvalidField) firstInvalidField = field;
       } else {
         field.classList.remove('is-invalid');
       }
@@ -206,11 +226,55 @@ document.addEventListener('DOMContentLoaded', function() {
     if (phoneDigits.length < 10) {
       valid = false;
       phone.classList.add('is-invalid');
+      
+      // Adicionar mensagem de erro
+      addValidationMessage(phone, 'Telefone inválido. Ex: (11) 98765-4321');
+      
+      if (!firstInvalidField) firstInvalidField = phone;
+    }
+    
+    // Validar email se preenchido
+    const email = document.getElementById('email');
+    if (email.value.trim() && !validateEmail(email.value)) {
+      valid = false;
+      email.classList.add('is-invalid');
+      
+      // Adicionar mensagem de erro
+      addValidationMessage(email, 'Email inválido');
+      
+      if (!firstInvalidField) firstInvalidField = email;
     }
     
     if (!valid) {
       e.preventDefault();
-      alert('Por favor, preencha todos os campos obrigatórios corretamente.');
+      
+      // Focar no primeiro campo inválido
+      if (firstInvalidField) {
+        firstInvalidField.focus();
+        firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      
+      // Adicionar animação de shake para destacar campos inválidos
+      document.querySelectorAll('.is-invalid').forEach(field => {
+        field.classList.add('animate-shake');
+        setTimeout(() => {
+          field.classList.remove('animate-shake');
+        }, 500);
+      });
     }
   });
+  
+  // Função para validar email
+  function validateEmail(email) {
+    const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(String(email).toLowerCase());
+  }
+  
+  // Função para adicionar mensagem de validação
+  function addValidationMessage(field, message) {
+    const msgElement = document.createElement('div');
+    msgElement.className = 'validation-message text-danger mt-1 small';
+    msgElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + message;
+    field.parentNode.appendChild(msgElement);
+  }
 });

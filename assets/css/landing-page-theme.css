@@ -1,0 +1,119 @@
+/* 
+ * ConCamp - CSS personalizado da Landing Page
+ * Gerado automaticamente em 2025-03-20 18:36:30
+ */
+
+/* Cores principais da landing page */
+:root {
+    --lp-primary: #00053c;
+    --lp-primary-dark: #000009;
+    --lp-primary-light: #33386f;
+    --lp-secondary: #4e5055;
+    --lp-accent: #ff9800;
+    --lp-hero-bg: #00053c;
+    --lp-hero-text: #ffffff;
+}
+
+/* ATTENTION (Hero section) */
+.lp-hero {
+    background: linear-gradient(135deg, var(--lp-hero-bg) 0%, #000009 100%);
+    color: #ffffff;
+}
+
+.lp-cta-btn {
+    background-color: #ff9800 !important;
+    border-color: #ff9800 !important;
+    color: #212529 !important;
+    border-radius: 50px;
+}
+
+.lp-cta-btn:hover {
+    background-color: #e57e00 !important;
+    border-color: #e57e00 !important;
+}
+
+.lp-badge {
+    background: #ff9800;
+    color: #212529;
+}
+
+/* INTEREST (Benefícios) */
+.lp-benefits {
+    background-color: #f9f9f9;
+}
+
+.lp-benefit-icon {
+    background-color: rgba(0, 5, 60, 0.1);
+    color: #00053c;
+}
+
+/* INTEREST (Depoimentos) */
+.lp-testimonials {
+    background-color: #ffffff;
+}
+
+.lp-testimonial-card {
+    background-color: #ffffff;
+    box-shadow: 0 10px 30px rgba(0, 5, 60, 0.05);
+}
+
+.lp-testimonial-card::before {
+    color: rgba(0, 5, 60, 0.1);
+}
+
+.lp-testimonial-name {
+    color: var(--lp-primary, #00053c);
+}
+
+/* DESIRE (Ganhadores) */
+.lp-winners {
+    background: linear-gradient(135deg, #f5f7fa 0%, #dbdde0 100%);
+}
+
+.lp-winner-card {
+    background-color: #ffffff;
+}
+
+.lp-winner-card .card-title {
+    color: var(--lp-primary, #00053c);
+}
+
+.lp-winner-card .card-text strong {
+    color: var(--lp-primary-dark, #000009);
+}
+
+/* DESIRE (Urgência) */
+.lp-urgency {
+    background-color: #00053c;
+    color: #ffffff;
+}
+
+.lp-countdown-item {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Footer */
+.lp-footer {
+    background-color: #343a40;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.lp-footer-contact-icon,
+.lp-footer h5 {
+    color: #00053c !important;
+}
+
+.lp-footer-social-item:hover {
+    background-color: #00053c;
+}
+
+/* WhatsApp Button */
+.lp-whatsapp-btn {
+    background-color: #25D366;
+    color: #ffffff;
+}
+
+/* Responsividade */
+@media (max-width: 991.98px) {
+    /* Manter o estilo responsivo */
+}

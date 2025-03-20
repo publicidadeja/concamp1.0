@@ -96,15 +96,47 @@ function sanitize($input) {
 }
 
 /**
+ * Limpa o cache de configurações
+ */
+function clearSettingsCache() {
+    if (isset($_SESSION['settings_cache'])) {
+        unset($_SESSION['settings_cache']);
+    }
+}
+
+/**
  * Obter configuração do banco de dados
  */
 function getSetting($key) {
+    // Usar cache de sessão para melhorar desempenho
+    if (!isset($_SESSION['settings_cache'])) {
+        $_SESSION['settings_cache'] = [];
+    }
+    
+    // Forçar leitura do banco para configurações de tema em modo de desenvolvimento
+    $force_read = false;
+    if (in_array($key, ['primary_color', 'secondary_color', 'header_color', 'logo_url', 'dark_mode', 'theme_version'])) {
+        $force_read = true;
+    }
+    
+    // Verificar se a configuração está no cache
+    if (!$force_read && isset($_SESSION['settings_cache'][$key])) {
+        return $_SESSION['settings_cache'][$key];
+    }
+    
+    // Se não estiver no cache, consultar banco de dados
     $conn = getConnection();
     $stmt = $conn->prepare("SELECT setting_value FROM settings WHERE setting_key = :key");
     $stmt->execute(['key' => $key]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    return $result ? $result['setting_value'] : null;
+    // Armazenar no cache
+    if ($result) {
+        $_SESSION['settings_cache'][$key] = $result['setting_value'];
+        return $result['setting_value'];
+    }
+    
+    return null;
 }
 
 /**
@@ -112,6 +144,9 @@ function getSetting($key) {
  */
 function updateSetting($key, $value) {
     $conn = getConnection();
+    
+    // Debug
+    error_log("updateSetting: atualizando $key = $value");
     
     // Verificar se a configuração já existe
     $stmt = $conn->prepare("SELECT id FROM settings WHERE setting_key = :key");
@@ -123,7 +158,25 @@ function updateSetting($key, $value) {
         $stmt = $conn->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (:key, :value)");
     }
     
-    return $stmt->execute(['key' => $key, 'value' => $value]);
+    $result = $stmt->execute(['key' => $key, 'value' => $value]);
+    
+    // Verificar após a atualização
+    if ($result) {
+        $stmt = $conn->prepare("SELECT setting_value FROM settings WHERE setting_key = :key");
+        $stmt->execute(['key' => $key]);
+        $savedValue = $stmt->fetchColumn();
+        error_log("updateSetting: verificando após salvar $key = $savedValue");
+        
+        // Atualizar cache
+        if (isset($_SESSION['settings_cache'])) {
+            $_SESSION['settings_cache'][$key] = $value;
+        }
+    }
+    
+    // Limpar cache de configurações para garantir dados atualizados
+    clearSettingsCache();
+    
+    return $result;
 }
 
 /**
@@ -140,11 +193,16 @@ function sendWhatsAppMessage($number, $message, $media = null, $custom_token = n
     $token = $custom_token ?: getSetting('whatsapp_token') ?: WHATSAPP_API_TOKEN;
     $api_url = WHATSAPP_API_URL;
     
+    // Log de depuração
+    error_log('Enviando WhatsApp para: ' . $number);
+    error_log('Mensagem: ' . $message);
+    error_log('Mídia: ' . ($media ? json_encode($media) : 'Nenhuma'));
+    
     // Formatar número de telefone
     $number = formatPhone($number);
     
     if ($media) {
-        // Envio com mídia
+        // Envio com mídia e texto juntos
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $api_url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -156,10 +214,40 @@ function sendWhatsAppMessage($number, $message, $media = null, $custom_token = n
         
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         
+        // Testar diferentes combinações de parâmetros para encontrar o formato correto que a API externa espera
+        // IMPORTANTE: Adaptar com base na documentação da API específica que você está usando
+        
+        // Vamos tentar três formatos diferentes, baseados em APIs comuns de WhatsApp:
+        
+        // FORMATO 1: Usando 'caption' (comum em APIs oficiais do WhatsApp)
         $post_fields = [
             'number' => $number,
+            'caption' => $message,
             'medias' => curl_file_create($media['path'], $media['type'], $media['name'])
         ];
+        
+        // Se a API espera um formato diferente, você pode tentar estes outros formatos
+        // descomentando o que achar mais adequado e comentando os outros:
+        
+        /*
+        // FORMATO 2: Usando 'message' e 'media' (comum em algumas APIs terceiras)
+        $post_fields = [
+            'number' => $number,
+            'message' => $message,
+            'media' => curl_file_create($media['path'], $media['type'], $media['name'])
+        ];
+        */
+        
+        /*
+        // FORMATO 3: Usando 'text' e 'file' (outro formato comum)
+        $post_fields = [
+            'number' => $number,
+            'text' => $message,
+            'file' => curl_file_create($media['path'], $media['type'], $media['name'])
+        ];
+        */
+        
+        error_log('Enviando mídia e texto juntos (Estratégia 1): ' . json_encode($post_fields, JSON_PARTIAL_OUTPUT_ON_ERROR));
         
         curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
     } else {
@@ -181,26 +269,104 @@ function sendWhatsAppMessage($number, $message, $media = null, $custom_token = n
             'body' => $message
         ]);
         
+        error_log('Enviando apenas texto: ' . $post_data);
+        
         curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
     }
     
     $response = curl_exec($ch);
     $err = curl_error($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     
     curl_close($ch);
     
+    // Log de resultado
+    error_log('Código HTTP da resposta: ' . $http_code);
+    error_log('Resposta da API: ' . $response);
+    
     if ($err) {
+        error_log('Erro curl: ' . $err);
         return [
             'success' => false,
-            'error' => $err
+            'error' => $err,
+            'http_code' => $http_code
         ];
     }
     
     $response_data = json_decode($response, true);
     
+    // Verificar se foi possível decodificar a resposta JSON
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log('Erro ao decodificar resposta JSON: ' . json_last_error_msg());
+        error_log('Resposta original: ' . $response);
+        return [
+            'success' => false,
+            'error' => 'Resposta inválida da API',
+            'http_code' => $http_code,
+            'raw_response' => $response
+        ];
+    }
+    
+    // Determinar se a operação foi bem-sucedida
+    $success = isset($response_data['status']) && $response_data['status'] === 'success';
+    
+    if (!$success) {
+        error_log('Erro na resposta da API: ' . json_encode($response_data));
+    } else {
+        error_log('Mensagem enviada com sucesso!');
+    }
+    
     return [
-        'success' => isset($response_data['status']) && $response_data['status'] === 'success',
-        'data' => $response_data
+        'success' => $success,
+        'data' => $response_data,
+        'http_code' => $http_code
+    ];
+}
+
+/**
+ * Enviar mensagem via WhatsApp API com estratégia inteligente
+ * Baseado na API específica e no comportamento observado
+ */
+function sendWhatsAppWithFallback($number, $message, $media, $custom_token = null) {
+    error_log('Iniciando envio com estratégia inteligente para mídia e texto');
+    
+    // Já que identificamos que a API está enviando primeiro o arquivo
+    // e depois o arquivo + texto, vamos pular a primeira tentativa
+    // e enviar diretamente apenas o texto após o envio do arquivo
+    
+    // Passo 1: Enviar somente a mídia, sem texto
+    $media_result = sendWhatsAppMessage($number, '', $media, $custom_token);
+    error_log('Resultado do envio apenas da mídia: ' . json_encode($media_result));
+    
+    // Verificar se o envio da mídia foi bem-sucedido
+    if (!$media_result['success']) {
+        error_log('Falha ao enviar a mídia. Tentando enviar apenas o texto.');
+        // Se falhou no envio da mídia, tentar enviar pelo menos o texto
+        $text_result = sendWhatsAppMessage($number, $message, null, $custom_token);
+        error_log('Resultado do envio apenas do texto: ' . json_encode($text_result));
+        
+        return [
+            'success' => $text_result['success'],
+            'media_result' => $media_result,
+            'text_result' => $text_result,
+            'fallback_used' => true
+        ];
+    }
+    
+    // Passo 2: Se o envio da mídia foi bem-sucedido, aguardar um momento
+    // para garantir que a mensagem anterior foi processada
+    usleep(500000); // Esperar 500ms
+    
+    // Passo 3: Enviar apenas o texto como uma mensagem separada
+    $text_result = sendWhatsAppMessage($number, $message, null, $custom_token);
+    error_log('Resultado do envio apenas do texto: ' . json_encode($text_result));
+    
+    // Retornar sucesso se ambos os envios foram bem-sucedidos
+    return [
+        'success' => $media_result['success'] && $text_result['success'],
+        'media_result' => $media_result,
+        'text_result' => $text_result,
+        'fallback_used' => true
     ];
 }
 
@@ -555,39 +721,97 @@ function addFollowUp($lead_id, $user_id, $type, $content, $due_date = null) {
 }
 
 /**
- * Obter follow-ups de um lead
+ * Obter follow-ups de um lead com paginação
  */
-function getLeadFollowUps($lead_id) {
+function getLeadFollowUps($lead_id, $page = 1, $per_page = 10) {
     $conn = getConnection();
     
+    // Consulta básica
     $sql = "SELECT f.*, u.name as user_name 
             FROM follow_ups f 
             JOIN users u ON f.user_id = u.id 
-            WHERE f.lead_id = :lead_id 
-            ORDER BY f.created_at DESC";
+            WHERE f.lead_id = :lead_id";
+    
+    $params = ['lead_id' => $lead_id];
+    
+    // Contar total de registros para paginação
+    $count_sql = "SELECT COUNT(*) FROM follow_ups WHERE lead_id = :lead_id";
+    $count_stmt = $conn->prepare($count_sql);
+    $count_stmt->execute(['lead_id' => $lead_id]);
+    $total = $count_stmt->fetchColumn();
+    
+    // Adicionar ordenação e paginação
+    $sql .= " ORDER BY f.created_at DESC";
+    $sql .= " LIMIT :offset, :limit";
+    
+    // Calcular offset
+    $offset = ($page - 1) * $per_page;
     
     $stmt = $conn->prepare($sql);
-    $stmt->execute(['lead_id' => $lead_id]);
+    $stmt->bindValue(':lead_id', $lead_id);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->bindValue(':limit', $per_page, PDO::PARAM_INT);
+    $stmt->execute();
     
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $follow_ups = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Calcular total de páginas
+    $total_pages = ceil($total / $per_page);
+    
+    return [
+        'follow_ups' => $follow_ups,
+        'total' => $total,
+        'page' => $page,
+        'per_page' => $per_page,
+        'total_pages' => $total_pages
+    ];
 }
 
 /**
- * Obter mensagens enviadas para um lead
+ * Obter mensagens enviadas para um lead com paginação
  */
-function getLeadMessages($lead_id) {
+function getLeadMessages($lead_id, $page = 1, $per_page = 10) {
     $conn = getConnection();
     
+    // Consulta básica
     $sql = "SELECT m.*, u.name as user_name 
             FROM sent_messages m 
             JOIN users u ON m.user_id = u.id 
-            WHERE m.lead_id = :lead_id 
-            ORDER BY m.created_at DESC";
+            WHERE m.lead_id = :lead_id";
+    
+    $params = ['lead_id' => $lead_id];
+    
+    // Contar total de registros para paginação
+    $count_sql = "SELECT COUNT(*) FROM sent_messages WHERE lead_id = :lead_id";
+    $count_stmt = $conn->prepare($count_sql);
+    $count_stmt->execute(['lead_id' => $lead_id]);
+    $total = $count_stmt->fetchColumn();
+    
+    // Adicionar ordenação e paginação
+    $sql .= " ORDER BY m.created_at DESC";
+    $sql .= " LIMIT :offset, :limit";
+    
+    // Calcular offset
+    $offset = ($page - 1) * $per_page;
     
     $stmt = $conn->prepare($sql);
-    $stmt->execute(['lead_id' => $lead_id]);
+    $stmt->bindValue(':lead_id', $lead_id);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->bindValue(':limit', $per_page, PDO::PARAM_INT);
+    $stmt->execute();
     
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Calcular total de páginas
+    $total_pages = ceil($total / $per_page);
+    
+    return [
+        'messages' => $messages,
+        'total' => $total,
+        'page' => $page,
+        'per_page' => $per_page,
+        'total_pages' => $total_pages
+    ];
 }
 
 /**

@@ -30,7 +30,72 @@ if (in_array($route, $protected_routes) && !isLoggedIn()) {
     redirect('index.php?route=login');
 }
 
-// Incluir cabeçalho
+// Tratar rotas de API - abordagem simplificada
+if (strpos($route, 'api/') === 0) {
+    // Suprimir erros e avisos para garantir resposta JSON limpa
+    error_reporting(0);
+    ini_set('display_errors', 0);
+    
+    // Extrair caminho da API
+    $api_path = substr($route, 4); // Remove "api/"
+    $api_file = __DIR__ . '/api/' . $api_path . '.php';
+    
+    // Iniciar captura de saída para garantir que nada além do JSON seja enviado
+    ob_start();
+    
+    if (file_exists($api_file)) {
+        try {
+            // Incluir o arquivo da API
+            include $api_file;
+        } catch (Throwable $e) {
+            // Limpar o buffer de saída em caso de erro
+            ob_end_clean();
+            // Garantir que o cabeçalho seja JSON
+            header('Content-Type: application/json');
+            // Retornar erro como JSON
+            echo json_encode([
+                'success' => false,
+                'error' => 'Erro interno: ' . $e->getMessage()
+            ]);
+        }
+    } else {
+        // API não encontrada
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'error' => 'API não encontrada: ' . $api_path
+        ]);
+    }
+    
+    // Capturar qualquer saída inesperada
+    $output = ob_get_clean();
+    
+    // Se parece JSON válido, enviar como está
+    if (!empty($output) && ($output[0] === '{' || $output[0] === '[')) {
+        header('Content-Type: application/json');
+        echo $output;
+    } else if (!empty($output)) {
+        // Saída inesperada - envolver em objeto JSON com erro
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'error' => 'Saída inesperada',
+            'debug_output' => substr($output, 0, 1000) // Limitar para não sobrecarregar
+        ]);
+    } else {
+        // Nenhuma saída - erro interno
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'error' => 'Nenhuma resposta do servidor'
+        ]);
+    }
+    
+    // Encerrar execução para não processar o resto da página
+    exit;
+}
+
+// Incluir cabeçalho para rotas não-API
 include_once __DIR__ . '/templates/header.php';
 
 // Conteúdo principal (roteamento)

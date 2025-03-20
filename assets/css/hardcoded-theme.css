@@ -1,0 +1,112 @@
+/* 
+ * ConCamp - Sistema de Contratos Premiados
+ * Estilos de tema com valores diretamente codificados 
+ */
+
+/* Cores principais */
+:root {
+    --primary: #00053c;
+    --primary-dark: #00042d;
+    --primary-light: #000856;
+    --secondary: #4e5055;
+    --secondary-dark: #3c3e42;
+    --secondary-light: #62646b;
+    --header-bg: #ffffff;
+    --header-text: #212529;
+    --primary-text: #ffffff;
+    --secondary-text: #ffffff;
+}
+
+/* Botões primários */
+.btn-primary,
+html body .btn-primary,
+body .btn-primary {
+    background-color: #00053c !important;
+    border-color: #00053c !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+html body .btn-primary:hover,
+html body .btn-primary:focus,
+html body .btn-primary:active,
+body .btn-primary:hover,
+body .btn-primary:focus,
+body .btn-primary:active {
+    background-color: #000421 !important;
+    border-color: #000421 !important;
+    color: #ffffff !important;
+}
+
+/* Botões secundários */
+.btn-secondary,
+html body .btn-secondary,
+body .btn-secondary {
+    background-color: #4e5055 !important;
+    border-color: #4e5055 !important;
+    color: #ffffff !important;
+}
+
+/* Botões outline */
+.btn-outline-primary,
+html body .btn-outline-primary,
+body .btn-outline-primary {
+    color: #00053c !important;
+    border-color: #00053c !important;
+    background-color: transparent !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active,
+html body .btn-outline-primary:hover,
+html body .btn-outline-primary:focus,
+html body .btn-outline-primary:active,
+body .btn-outline-primary:hover,
+body .btn-outline-primary:focus,
+body .btn-outline-primary:active {
+    background-color: #00053c !important;
+    color: #ffffff !important;
+    border-color: #00053c !important;
+}
+
+/* Links */
+a:not(.btn),
+html body a:not(.btn),
+body a:not(.btn) {
+    color: #00053c !important;
+}
+
+a:not(.btn):hover,
+html body a:not(.btn):hover,
+body a:not(.btn):hover {
+    color: #000856 !important;
+}
+
+/* Estilos para navegação ativa */
+.page-item.active .page-link {
+    background-color: #00053c !important;
+    border-color: #00053c !important;
+    color: #ffffff !important;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #00053c !important;
+    color: #ffffff !important;
+}
+
+/* Cores de texto e fundo */
+.bg-primary {
+    background-color: #00053c !important;
+}
+
+.text-primary {
+    color: #00053c !important;
+}
+
+/* Classes de bordas */
+.border-primary {
+    border-color: #00053c !important;
+}

@@ -12,13 +12,12 @@ body {
 }
 
 a {
-    color: #0d6efd;
     text-decoration: none;
     transition: all 0.3s ease;
 }
 
 a:hover {
-    color: #0a58ca;
+    /* A cor será definida pelo tema */
 }
 
 .btn {
@@ -28,6 +27,7 @@ a:hover {
     transition: all 0.3s ease;
 }
 
+/* Botões estilizados através do tema
 .btn-primary {
     background-color: #0d6efd;
     border-color: #0d6efd;
@@ -37,7 +37,9 @@ a:hover {
     background-color: #0a58ca;
     border-color: #0a58ca;
 }
+*/
 
+/* Botões outline estilizados através do tema 
 .btn-outline-primary {
     color: #0d6efd;
     border-color: #0d6efd;
@@ -48,6 +50,7 @@ a:hover {
     border-color: #0d6efd;
     color: #fff;
 }
+*/
 
 /* Header */
 .site-header {
@@ -64,9 +67,11 @@ a:hover {
     font-weight: 500;
 }
 
+/* Estilizado através do tema
 .navbar-nav .nav-item.active .nav-link {
     color: #0d6efd;
 }
+*/
 
 /* Hero section */
 .hero-section {

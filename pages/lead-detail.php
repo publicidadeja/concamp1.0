@@ -29,9 +29,20 @@ if (!$is_admin && $lead['seller_id'] != $user_id) {
     return;
 }
 
-// Obter follow-ups e mensagens
-$follow_ups = getLeadFollowUps($lead_id);
-$messages = getLeadMessages($lead_id);
+// Obter página atual da URL
+$timeline_page = isset($_GET['timeline_page']) ? intval($_GET['timeline_page']) : 1;
+$messages_page = isset($_GET['messages_page']) ? intval($_GET['messages_page']) : 1;
+
+// Definir itens por página
+$items_per_page = 10;
+
+// Obter follow-ups e mensagens com paginação
+$follow_up_data = getLeadFollowUps($lead_id, $timeline_page, $items_per_page);
+$message_data = getLeadMessages($lead_id, $messages_page, $items_per_page);
+
+// Extrair os arrays para uso na view
+$follow_ups = $follow_up_data['follow_ups'];
+$messages = $message_data['messages'];
 
 // Obter vendedores para atribuição
 $sellers = getUsersByRole('seller');
@@ -206,19 +217,24 @@ $page_title = "Lead: " . $lead['name'];
     <!-- Coluna da direita -->
     <div class="col-lg-8">
         <!-- Abas para Follow-ups, Tarefas e Mensagens -->
+        <?php 
+        // Determinar qual aba deve estar ativa, com base no parâmetro da URL ou por padrão
+        $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'timeline';
+        ?>
+        
         <ul class="nav nav-tabs" id="leadTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timeline" type="button" role="tab" aria-controls="timeline" aria-selected="true">
+                <button class="nav-link <?php echo $active_tab === 'timeline' ? 'active' : ''; ?>" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timeline" type="button" role="tab" aria-controls="timeline" aria-selected="<?php echo $active_tab === 'timeline' ? 'true' : 'false'; ?>">
                     Timeline
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="messages-tab" data-bs-toggle="tab" data-bs-target="#messages" type="button" role="tab" aria-controls="messages" aria-selected="false">
+                <button class="nav-link <?php echo $active_tab === 'messages' ? 'active' : ''; ?>" id="messages-tab" data-bs-toggle="tab" data-bs-target="#messages" type="button" role="tab" aria-controls="messages" aria-selected="<?php echo $active_tab === 'messages' ? 'true' : 'false'; ?>">
                     Mensagens
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab" aria-controls="notes" aria-selected="false">
+                <button class="nav-link <?php echo $active_tab === 'notes' ? 'active' : ''; ?>" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab" aria-controls="notes" aria-selected="<?php echo $active_tab === 'notes' ? 'true' : 'false'; ?>">
                     Adicionar Nota/Tarefa
                 </button>
             </li>
@@ -226,8 +242,15 @@ $page_title = "Lead: " . $lead['name'];
         
         <div class="tab-content" id="leadTabsContent">
             <!-- Timeline Tab -->
-            <div class="tab-pane fade show active" id="timeline" role="tabpanel" aria-labelledby="timeline-tab">
+            <div class="tab-pane fade <?php echo $active_tab === 'timeline' ? 'show active' : ''; ?>" id="timeline" role="tabpanel" aria-labelledby="timeline-tab">
                 <div class="lead-detail-section">
+                    <?php if ($follow_up_data['total'] > 0): ?>
+                    <div class="items-count">
+                        Mostrando <?php echo count($follow_ups); ?> de <?php echo $follow_up_data['total']; ?> registros 
+                        (Página <?php echo $timeline_page; ?> de <?php echo $follow_up_data['total_pages']; ?>)
+                    </div>
+                    <?php endif; ?>
+                    
                     <div class="timeline">
                         <?php if (empty($follow_ups)): ?>
                             <div class="alert alert-info">Nenhum registro na timeline.</div>
@@ -278,13 +301,51 @@ $page_title = "Lead: " . $lead['name'];
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
+                        
+                        <?php if ($follow_up_data['total_pages'] > 1): ?>
+                        <!-- Paginação para Timeline -->
+                        <nav aria-label="Navegação de timeline" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                <?php if ($timeline_page > 1): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="?route=lead-detail&id=<?php echo $lead_id; ?>&timeline_page=<?php echo $timeline_page - 1; ?>&messages_page=<?php echo $messages_page; ?>&tab=timeline" aria-label="Anterior">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                <?php endif; ?>
+                                
+                                <?php for ($i = 1; $i <= $follow_up_data['total_pages']; $i++): ?>
+                                <li class="page-item <?php echo $i === $timeline_page ? 'active' : ''; ?>">
+                                    <a class="page-link" href="?route=lead-detail&id=<?php echo $lead_id; ?>&timeline_page=<?php echo $i; ?>&messages_page=<?php echo $messages_page; ?>&tab=timeline">
+                                        <?php echo $i; ?>
+                                    </a>
+                                </li>
+                                <?php endfor; ?>
+                                
+                                <?php if ($timeline_page < $follow_up_data['total_pages']): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="?route=lead-detail&id=<?php echo $lead_id; ?>&timeline_page=<?php echo $timeline_page + 1; ?>&messages_page=<?php echo $messages_page; ?>&tab=timeline" aria-label="Próximo">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                <?php endif; ?>
+                            </ul>
+                        </nav>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
             
             <!-- Messages Tab -->
-            <div class="tab-pane fade" id="messages" role="tabpanel" aria-labelledby="messages-tab">
+            <div class="tab-pane fade <?php echo $active_tab === 'messages' ? 'show active' : ''; ?>" id="messages" role="tabpanel" aria-labelledby="messages-tab">
                 <div class="lead-detail-section">
+                    <?php if ($message_data['total'] > 0): ?>
+                    <div class="items-count">
+                        Mostrando <?php echo count($messages); ?> de <?php echo $message_data['total']; ?> mensagens
+                        (Página <?php echo $messages_page; ?> de <?php echo $message_data['total_pages']; ?>)
+                    </div>
+                    <?php endif; ?>
+                    
                     <div id="message-history">
                         <?php if (empty($messages)): ?>
                             <div class="alert alert-info">Nenhuma mensagem enviada.</div>
@@ -308,12 +369,43 @@ $page_title = "Lead: " . $lead['name'];
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
+                        
+                        <?php if ($message_data['total_pages'] > 1): ?>
+                        <!-- Paginação para Mensagens -->
+                        <nav aria-label="Navegação de mensagens" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                <?php if ($messages_page > 1): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="?route=lead-detail&id=<?php echo $lead_id; ?>&timeline_page=<?php echo $timeline_page; ?>&messages_page=<?php echo $messages_page - 1; ?>&tab=messages" aria-label="Anterior">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                <?php endif; ?>
+                                
+                                <?php for ($i = 1; $i <= $message_data['total_pages']; $i++): ?>
+                                <li class="page-item <?php echo $i === $messages_page ? 'active' : ''; ?>">
+                                    <a class="page-link" href="?route=lead-detail&id=<?php echo $lead_id; ?>&timeline_page=<?php echo $timeline_page; ?>&messages_page=<?php echo $i; ?>&tab=messages">
+                                        <?php echo $i; ?>
+                                    </a>
+                                </li>
+                                <?php endfor; ?>
+                                
+                                <?php if ($messages_page < $message_data['total_pages']): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="?route=lead-detail&id=<?php echo $lead_id; ?>&timeline_page=<?php echo $timeline_page; ?>&messages_page=<?php echo $messages_page + 1; ?>&tab=messages" aria-label="Próximo">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                <?php endif; ?>
+                            </ul>
+                        </nav>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
             
             <!-- Notes Tab -->
-            <div class="tab-pane fade" id="notes" role="tabpanel" aria-labelledby="notes-tab">
+            <div class="tab-pane fade <?php echo $active_tab === 'notes' ? 'show active' : ''; ?>" id="notes" role="tabpanel" aria-labelledby="notes-tab">
                 <div class="lead-detail-section">
                     <form id="followUpForm" data-lead-id="<?php echo $lead_id; ?>">
                         <div class="mb-3">
@@ -354,6 +446,32 @@ $page_title = "Lead: " . $lead['name'];
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <?php 
+                // Verificar se o vendedor tem token de WhatsApp configurado
+                $has_whatsapp_token = false;
+                
+                if (!$is_admin && $user_id == $lead['seller_id']) {
+                    // Verificar token do vendedor atual
+                    $has_whatsapp_token = !empty($current_user['whatsapp_token']);
+                } else if ($is_admin && !empty($lead['seller_id'])) {
+                    // Verificar token do vendedor atribuído
+                    $seller = getUserById($lead['seller_id']);
+                    $has_whatsapp_token = $seller && !empty($seller['whatsapp_token']);
+                }
+                
+                // Exibir aviso se não tiver token configurado
+                if (!$has_whatsapp_token):
+                ?>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Atenção:</strong> Não há token de WhatsApp configurado para este vendedor. As mensagens serão apenas registradas no sistema, mas não serão enviadas via WhatsApp.
+                    <?php if (!$is_admin): ?>
+                    <hr>
+                    <p class="mb-0">Configure seu token de WhatsApp na página <a href="<?php echo url('index.php?route=seller-landing-page'); ?>" target="_blank">Minha Landing Page</a>.</p>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+                
                 <form id="sendMessageForm" data-lead-id="<?php echo $lead_id; ?>">
                     <div class="mb-3">
                         <label for="message_template" class="form-label">Modelo de Mensagem</label>
@@ -384,7 +502,13 @@ $page_title = "Lead: " . $lead['name'];
                     <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
                     
                     <div class="d-flex justify-content-between">
-                        <button type="submit" class="btn btn-primary">Enviar via WhatsApp</button>
+                        <button type="submit" class="btn btn-primary">
+                            <?php if ($has_whatsapp_token): ?>
+                            <i class="fab fa-whatsapp me-2"></i>Enviar via WhatsApp
+                            <?php else: ?>
+                            <i class="fas fa-save me-2"></i>Registrar Mensagem
+                            <?php endif; ?>
+                        </button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     </div>
                 </form>
@@ -427,6 +551,41 @@ $page_title = "Lead: " . $lead['name'];
     </div>
 </div>
 
+<style>
+/* Estilo para limitar a altura de mensagens longas e adicionar rolagem */
+.message-content {
+    max-height: 150px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+/* Destaque para itens da timeline */
+.timeline-item {
+    border-left: 3px solid #e9ecef;
+    padding-left: 15px;
+    margin-bottom: 15px;
+}
+
+/* Melhorias na paginação */
+.pagination {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* Contador de total de itens */
+.items-count {
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Mostrar/ocultar campo de data limite para tarefas
@@ -436,6 +595,33 @@ document.addEventListener('DOMContentLoaded', function() {
     if (followupType && dueDateGroup) {
         followupType.addEventListener('change', function() {
             dueDateGroup.style.display = this.value === 'task' ? 'block' : 'none';
+        });
+    }
+    
+    // Processar variáveis no template de mensagem
+    const templateSelect = document.getElementById('message_template');
+    const messageContent = document.getElementById('message_content');
+    
+    if (templateSelect && messageContent) {
+        templateSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            
+            if (selectedOption && selectedOption.dataset.content) {
+                // Obter template original
+                let template = selectedOption.dataset.content;
+                
+                // Substituir variáveis
+                template = template.replace(/{nome}/g, '<?php echo addslashes($lead['name']); ?>');
+                template = template.replace(/{tipo_veiculo}/g, '<?php echo $lead['plan_type'] == 'car' ? 'Carro' : 'Moto'; ?>');
+                template = template.replace(/{valor_credito}/g, 'R$ <?php echo formatCurrency($lead['plan_credit']); ?>');
+                template = template.replace(/{prazo}/g, '<?php echo $lead['plan_term']; ?> meses');
+                template = template.replace(/{valor_primeira}/g, 'R$ <?php echo formatCurrency($lead['first_installment']); ?>');
+                template = template.replace(/{valor_demais}/g, 'R$ <?php echo formatCurrency($lead['other_installments']); ?>');
+                template = template.replace(/{nome_consultor}/g, '<?php echo addslashes($current_user['name']); ?>');
+                
+                // Atualizar campo de mensagem
+                messageContent.value = template;
+            }
         });
     }
 });

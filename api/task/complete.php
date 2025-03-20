@@ -3,6 +3,19 @@
  * API para marcar tarefa como concluída
  */
 
+// Suprimir todos os avisos e erros
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// Iniciar sessão e incluir arquivos necessários
+@session_start();
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../includes/auth.php';
+
+// Log para depuração
+error_log("API Task/Complete: Início da execução - " . date('Y-m-d H:i:s'));
+
 // Verificar se é uma requisição POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Content-Type: application/json');

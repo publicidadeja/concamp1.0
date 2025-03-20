@@ -412,15 +412,32 @@ function initLeadOperations() {
 function updateLeadStatus(leadId, status) {
     showLoader();
     
-    // Enviar requisição AJAX
+    const formData = new FormData();
+    formData.append('lead_id', leadId);
+    formData.append('status', status);
+    formData.append('csrf_token', getCsrfToken());
+
     fetch('index.php?route=api/lead/update-status', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: `lead_id=${leadId}&status=${status}&csrf_token=${getCsrfToken()}`
+        body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        // Tentar ler os dados independentemente do status
+        return response.text().then(text => {
+            // Tentar converter para JSON
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                // Se não for JSON válido, retornar erro formatado
+                console.error('Resposta não é JSON válido:', text);
+                return {
+                    success: false,
+                    error: 'Resposta do servidor inválida',
+                    rawResponse: text.substring(0, 500) // Limitar tamanho
+                };
+            }
+        });
+    })
     .then(data => {
         hideLoader();
         
@@ -441,34 +458,40 @@ function updateLeadStatus(leadId, status) {
                 statusBadge.classList.add(`badge-${status}`);
                 
                 // Atualizar texto
-                switch (status) {
-                    case 'new':
-                        statusBadge.textContent = 'Novo';
-                        break;
-                    case 'contacted':
-                        statusBadge.textContent = 'Contatado';
-                        break;
-                    case 'negotiating':
-                        statusBadge.textContent = 'Negociando';
-                        break;
-                    case 'converted':
-                        statusBadge.textContent = 'Convertido';
-                        break;
-                    case 'lost':
-                        statusBadge.textContent = 'Perdido';
-                        break;
-                }
+                const statusText = {
+                    'new': 'Novo',
+                    'contacted': 'Contatado',
+                    'negotiating': 'Negociando',
+                    'converted': 'Convertido',
+                    'lost': 'Perdido'
+                };
+                statusBadge.textContent = statusText[status] || status;
             }
             
-            showToast('Sucesso!', 'Status do lead atualizado com sucesso.', 'success');
+            showToast('Sucesso!', data.message || 'Status atualizado com sucesso.', 'success');
+            
+            // Recarregar a página após 1.5 segundos
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
         } else {
             showToast('Erro!', data.error || 'Ocorreu um erro ao atualizar o status.', 'danger');
         }
     })
     .catch(error => {
         hideLoader();
-        showToast('Erro!', 'Ocorreu um erro na comunicação com o servidor.', 'danger');
-        console.error('Erro:', error);
+        console.error('=== ERRO DE COMUNICAÇÃO COM API ===');
+        console.error('URL:', 'index.php?route=api/lead/update-status');
+        console.error('Erro detalhado:', error);
+        
+        // A atualização pode ter funcionado mesmo com erro no retorno
+        // Tentar recarregar a página para ver o status atualizado
+        showToast('Aviso', 'A operação pode ter sido concluída, mas houve um erro na comunicação. A página será recarregada para verificar.', 'warning');
+        
+        // Recarregar a página após 2 segundos
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
     });
 }
 
@@ -486,7 +509,12 @@ function assignLeadToSeller(leadId, sellerId) {
         },
         body: `lead_id=${leadId}&seller_id=${sellerId}&csrf_token=${getCsrfToken()}`
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Erro na requisição: ' + response.status);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoader();
         
@@ -536,7 +564,23 @@ function addFollowUp(leadId, type, content, dueDate = null) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        // Tentar ler os dados independentemente do status
+        return response.text().then(text => {
+            // Tentar converter para JSON
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                // Se não for JSON válido, retornar erro formatado
+                console.error('Resposta não é JSON válido:', text);
+                return {
+                    success: false,
+                    error: 'Resposta do servidor inválida',
+                    rawResponse: text.substring(0, 500) // Limitar tamanho
+                };
+            }
+        });
+    })
     .then(data => {
         hideLoader();
         
@@ -557,8 +601,21 @@ function addFollowUp(leadId, type, content, dueDate = null) {
     })
     .catch(error => {
         hideLoader();
-        showToast('Erro!', 'Ocorreu um erro na comunicação com o servidor.', 'danger');
-        console.error('Erro:', error);
+        console.error('=== ERRO DE COMUNICAÇÃO COM API (Follow-up) ===');
+        console.error('URL:', 'index.php?route=api/lead/add-followup');
+        console.error('Erro detalhado:', error);
+        
+        // A operação pode ter funcionado mesmo com erro no retorno
+        showToast('Aviso', 'A nota/tarefa pode ter sido adicionada, mas houve um erro na comunicação. A página será recarregada para verificar.', 'warning');
+        
+        // Limpar o formulário de qualquer forma
+        document.getElementById('followup_content').value = '';
+        document.getElementById('due_date').value = '';
+        
+        // Recarregar a página após 2 segundos
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
     });
 }
 
@@ -568,6 +625,12 @@ function addFollowUp(leadId, type, content, dueDate = null) {
 function addFollowUpToTimeline(followup) {
     const timeline = document.querySelector('.timeline');
     if (!timeline) return;
+    
+    // Remover alerta de "nenhum registro" se existir
+    const noRecordsAlert = timeline.querySelector('.alert');
+    if (noRecordsAlert) {
+        noRecordsAlert.remove();
+    }
     
     // Criar elementos do item de timeline
     const item = document.createElement('div');
@@ -588,7 +651,7 @@ function addFollowUpToTimeline(followup) {
     
     const date = document.createElement('span');
     date.className = 'timeline-date';
-    date.textContent = followup.created_at;
+    date.textContent = followup.created_at || formatDateTime(new Date());
     
     const body = document.createElement('div');
     body.className = 'timeline-body';
@@ -645,7 +708,12 @@ function completeTask(taskId) {
         },
         body: `task_id=${taskId}&csrf_token=${getCsrfToken()}`
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Erro na requisição: ' + response.status);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoader();
         
@@ -690,32 +758,24 @@ function initMessageOperations() {
             let message = document.getElementById('message_content').value;
             const mediaInput = document.getElementById('message_media');
             
-            // Se um template foi selecionado, usar o conteúdo dele
-            if (templateId) {
-                const templateContent = document.querySelector(`option[value="${templateId}"]`).dataset.content;
-                if (templateContent) {
-                    message = templateContent;
-                }
-            }
+            // Nota: Não substituímos mais o conteúdo pelo template original
+            // porque o código em lead-detail.php já processou as variáveis no cliente
             
             if (leadId && message) {
-                sendWhatsAppMessage(leadId, message, mediaInput.files[0] || null);
+                // Verificar arquivo de mídia
+                const mediaFile = mediaInput && mediaInput.files && mediaInput.files.length > 0 ? mediaInput.files[0] : null;
+                
+                if (mediaFile) {
+                    console.log('Arquivo de mídia detectado:', mediaFile.name, 'tipo:', mediaFile.type, 'tamanho:', mediaFile.size);
+                }
+                
+                sendWhatsAppMessage(leadId, message, mediaFile);
             }
         });
         
-        // Atualizar conteúdo da mensagem ao selecionar template
-        const templateSelect = document.getElementById('message_template');
-        const messageContent = document.getElementById('message_content');
-        
-        if (templateSelect && messageContent) {
-            templateSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                
-                if (selectedOption && selectedOption.dataset.content) {
-                    messageContent.value = selectedOption.dataset.content;
-                }
-            });
-        }
+        // O processamento de variáveis para templates de mensagem agora está implementado
+        // diretamente na página lead-detail.php para garantir a substituição adequada
+        // com valores dinâmicos do lead e consultor atual.
     }
 }
 
@@ -725,13 +785,18 @@ function initMessageOperations() {
 function sendWhatsAppMessage(leadId, message, media = null) {
     showLoader();
     
+    console.log('Preparando envio de mensagem para o lead #' + leadId);
+    console.log('Mídia: ', media);
+    
     // Montar dados para envio
     let formData = new FormData();
     formData.append('lead_id', leadId);
     formData.append('message', message);
     formData.append('csrf_token', getCsrfToken());
     
+    // Anexar mídia com o nome correto esperado pelo backend
     if (media) {
+        console.log('Anexando mídia: ', media.name, media.type, media.size);
         formData.append('media', media);
     }
     
@@ -741,14 +806,35 @@ function sendWhatsAppMessage(leadId, message, media = null) {
         formData.append('template_id', templateSelect.value);
     }
     
+    console.log('Enviando mensagem para lead #' + leadId);
+    
     // Enviar requisição AJAX
     fetch('index.php?route=api/message/send', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Resposta recebida:', response.status);
+        
+        // Tentar ler os dados independentemente do status
+        return response.text().then(text => {
+            // Tentar converter para JSON
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                // Se não for JSON válido, retornar erro formatado
+                console.error('Resposta não é JSON válido:', text);
+                return {
+                    success: false,
+                    error: 'Resposta do servidor inválida',
+                    rawResponse: text.substring(0, 500) // Limitar tamanho
+                };
+            }
+        });
+    })
     .then(data => {
         hideLoader();
+        console.log('Dados da resposta:', data);
         
         if (data.success) {
             // Limpar formulário
@@ -760,19 +846,46 @@ function sendWhatsAppMessage(leadId, message, media = null) {
             }
             
             // Atualizar histórico de mensagens
-            if (data.message) {
-                addMessageToHistory(data.message);
+            if (data.sent_message) {
+                addMessageToHistory(data.sent_message);
             }
             
-            showToast('Sucesso!', 'Mensagem enviada com sucesso.', 'success');
+            // Fechar modal se estiver aberto
+            const modal = bootstrap.Modal.getInstance(document.getElementById('sendMessageModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Mensagem personalizada dependendo se a mensagem foi realmente enviada via WhatsApp ou apenas registrada
+            if (data.whatsapp_sent) {
+                showToast('Sucesso!', 'Mensagem enviada com sucesso via WhatsApp.', 'success');
+            } else {
+                // Exibir mensagem informando que é necessário configurar o token
+                showToast('Atenção', 'Mensagem registrada no sistema, mas não foi enviada por WhatsApp. Configure um token de WhatsApp na página "Minha Landing Page".', 'warning');
+            }
         } else {
             showToast('Erro!', data.error || 'Ocorreu um erro ao enviar a mensagem.', 'danger');
         }
     })
     .catch(error => {
         hideLoader();
-        showToast('Erro!', 'Ocorreu um erro na comunicação com o servidor.', 'danger');
-        console.error('Erro:', error);
+        console.error('=== ERRO DE COMUNICAÇÃO COM API (Mensagem) ===');
+        console.error('URL:', 'index.php?route=api/message/send');
+        console.error('Erro detalhado:', error);
+        
+        // Recarregar a página após erro para verificar se a mensagem foi enviada
+        showToast('Aviso', 'Houve um erro na comunicação ao enviar a mensagem. A página será recarregada para verificar.', 'warning');
+        
+        // Fechar modal se estiver aberto
+        const modal = bootstrap.Modal.getInstance(document.getElementById('sendMessageModal'));
+        if (modal) {
+            modal.hide();
+        }
+        
+        // Recarregar a página após 2 segundos
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
     });
 }
 
@@ -783,6 +896,12 @@ function addMessageToHistory(message) {
     const messageList = document.getElementById('message-history');
     if (!messageList) return;
     
+    // Remover alerta de "nenhuma mensagem" se existir
+    const noMessagesAlert = messageList.querySelector('.alert');
+    if (noMessagesAlert) {
+        noMessagesAlert.remove();
+    }
+    
     // Criar elemento de mensagem
     const item = document.createElement('div');
     item.className = 'message-item mb-3 p-3 bg-light rounded';
@@ -792,7 +911,7 @@ function addMessageToHistory(message) {
     
     const date = document.createElement('span');
     date.className = 'text-muted small';
-    date.textContent = message.sent_date;
+    date.textContent = message.sent_date || formatDateTime(new Date());
     
     const sender = document.createElement('span');
     sender.className = 'fw-bold';
@@ -826,6 +945,18 @@ function addMessageToHistory(message) {
     
     // Adicionar ao início da lista
     messageList.insertBefore(item, messageList.firstChild);
+}
+
+// Função auxiliar para formatar data e hora
+function formatDateTime(date) {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
 /**
@@ -868,7 +999,12 @@ function submitAjaxForm(url, method, formData, redirectUrl = '') {
         method: method,
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Erro na requisição: ' + response.status);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoader();
         

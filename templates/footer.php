@@ -94,6 +94,12 @@ $is_dashboard = !in_array($current_route, ['home', 'login', 'register', 'forgot-
 <script src="<?php echo url('/assets/js/app.js'); ?>"></script>
 
 <?php if ($is_dashboard): ?>
+<!-- Configurações JavaScript -->
+<script>
+    // Definir constantes do sistema
+    const APP_URL = '<?php echo APP_URL; ?>';
+</script>
+
 <!-- Dashboard JS -->
 <script src="<?php echo url('/assets/js/dashboard.js'); ?>"></script>
 

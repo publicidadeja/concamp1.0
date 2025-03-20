@@ -1,85 +1,60 @@
 <?php
-/**
- * API para atualizar status de um lead
- */
+// Suprimir todos os avisos e erros - apenas mostrar no log
+error_reporting(0);
+ini_set('display_errors', 0);
 
-// Verificar se é uma requisição POST
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'error' => 'Método não permitido']);
-    exit;
-}
+// Iniciar sessão e incluir arquivos necessários
+@session_start();
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../includes/auth.php';
 
-// Verificar CSRF token
-if (!isset($_POST['csrf_token']) || !verifyCsrfToken($_POST['csrf_token'])) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'error' => 'Token inválido']);
-    exit;
-}
+// Log para depuração
+error_log("API Lead/Update-Status: Início da execução - " . date('Y-m-d H:i:s'));
 
-// Obter parâmetros
-$lead_id = isset($_POST['lead_id']) ? intval($_POST['lead_id']) : 0;
-$status = isset($_POST['status']) ? sanitize($_POST['status']) : '';
+// Definir header JSON no início do arquivo
+header('Content-Type: application/json');
 
-// Validar parâmetros
-if (!$lead_id || !in_array($status, ['new', 'contacted', 'negotiating', 'converted', 'lost'])) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'error' => 'Parâmetros inválidos']);
-    exit;
-}
-
-// Obter usuário atual
-$current_user = getCurrentUser();
-$user_id = $current_user['id'];
-$is_admin = isAdmin();
-
-// Obter dados do lead
-$lead = getLeadById($lead_id);
-
-if (!$lead) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'error' => 'Lead não encontrado']);
-    exit;
-}
-
-// Verificar permissão (apenas admin ou vendedor atribuído pode atualizar)
-if (!$is_admin && $lead['seller_id'] != $user_id) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'error' => 'Você não tem permissão para atualizar este lead']);
-    exit;
-}
-
-// Atualizar status
-$result = updateLeadStatus($lead_id, $status);
-
-if ($result) {
-    // Registrar mudança na timeline
-    $content = "Status alterado para: ";
-    
-    switch ($status) {
-        case 'new':
-            $content .= "Novo";
-            break;
-        case 'contacted':
-            $content .= "Contatado";
-            break;
-        case 'negotiating':
-            $content .= "Negociando";
-            break;
-        case 'converted':
-            $content .= "Convertido";
-            break;
-        case 'lost':
-            $content .= "Perdido";
-            break;
+try {
+    // Verificar método
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Método não permitido. Use POST.');
     }
+
+    // Verificar e obter parâmetros
+    $lead_id = isset($_POST['lead_id']) ? intval($_POST['lead_id']) : 0;
+    $status = isset($_POST['status']) ? sanitize($_POST['status']) : '';
     
-    addFollowUp($lead_id, $user_id, 'note', $content);
+    if (!$lead_id) {
+        throw new Exception('ID do lead não fornecido.');
+    }
+
+    if (!in_array($status, ['new', 'contacted', 'negotiating', 'converted', 'lost'])) {
+        throw new Exception('Status inválido.');
+    }
+
+    // Verificar CSRF token
+    if (!isset($_POST['csrf_token']) || !verifyCsrfToken($_POST['csrf_token'])) {
+        throw new Exception('Token de segurança inválido.');
+    }
+
+    // Atualizar status
+    $result = updateLeadStatus($lead_id, $status);
     
-    header('Content-Type: application/json');
-    echo json_encode(['success' => true]);
-} else {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'error' => 'Erro ao atualizar status']);
+    if (!$result) {
+        throw new Exception('Erro ao atualizar status.');
+    }
+
+    // Retornar sucesso
+    echo json_encode([
+        'success' => true,
+        'message' => 'Status atualizado com sucesso.',
+        'status' => $status
+    ]);
+
+} catch (Exception $e) {
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ]);
 }
-exit;

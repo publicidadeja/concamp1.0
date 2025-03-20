@@ -32,17 +32,60 @@ $user_role = $current_user ? $current_user['role'] : '';
     <link href="<?php echo url('assets/css/dashboard.css'); ?>" rel="stylesheet">
     <?php endif; ?>
     
+    <!-- Tema com cores fixas -->
+    <link href="<?php echo url('assets/css/hardcoded-theme.css?v=' . time()); ?>" rel="stylesheet" id="hardcoded-theme-css">
+    
+    <!-- Script para garantir que o tema seja sempre atualizado -->
+    <script>
+    (function() {
+        // Verificar se o tema está desatualizado
+        const storedThemeVersion = localStorage.getItem('theme_version');
+        const currentThemeVersion = '<?php echo $theme_timestamp; ?>';
+        
+        if (storedThemeVersion !== currentThemeVersion) {
+            // Armazenar nova versão
+            localStorage.setItem('theme_version', currentThemeVersion);
+            
+            // Se o usuário recarregou a página nos últimos 5 segundos, não recarregar novamente
+            const lastReload = localStorage.getItem('last_reload');
+            const now = new Date().getTime();
+            
+            if (!lastReload || (now - parseInt(lastReload)) > 5000) {
+                localStorage.setItem('last_reload', now);
+                // Forçar recarga do CSS sem recarregar a página
+                const themeCss = document.getElementById('dynamic-theme-css');
+                if (themeCss) {
+                    const currentSrc = themeCss.getAttribute('href');
+                    const baseSrc = currentSrc.split('?')[0];
+                    const newSrc = baseSrc + '?v=' + currentThemeVersion;
+                    themeCss.setAttribute('href', newSrc);
+                }
+            }
+        }
+    })();
+    </script>
+    
     <!-- IMask para máscaras de input -->
     <script src="https://unpkg.com/imask"></script>
 </head>
-<body class="<?php echo $body_class; ?>">
+<body class="<?php echo $body_class; ?> theme-applied">
     <?php if ($is_logged_in): ?>
     <!-- Navbar para usuários logados -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
             <a class="navbar-brand" href="<?php echo url('index.php?route=dashboard'); ?>">
+                <?php 
+                // Verificar se há um logo personalizado
+                $logo_url = getSetting('logo_url');
+                if (!empty($logo_url)): 
+                    $logo_full_url = url($logo_url);
+                    error_log("Logo URL para usuários logados: " . $logo_full_url);
+                ?>
+                <img src="<?php echo $logo_full_url; ?>" alt="Logo" height="40" class="d-inline-block align-text-top">
+                <?php else: ?>
                 <i class="fas fa-car-side me-2"></i>
-                ConCamp
+                <?php echo getSetting('site_name') ?: 'ConCamp'; ?>
+                <?php endif; ?>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -143,11 +186,21 @@ $user_role = $current_user ? $current_user['role'] : '';
     <div class="container mt-4">
     <?php else: ?>
     <!-- Navbar para visitantes -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand" href="<?php echo url('index.php'); ?>">
+                <?php 
+                // Verificar se há um logo personalizado
+                $logo_url = getSetting('logo_url');
+                if (!empty($logo_url)): 
+                    $logo_full_url = url($logo_url);
+                    error_log("Logo URL para visitantes: " . $logo_full_url);
+                ?>
+                <img src="<?php echo $logo_full_url; ?>" alt="Logo" height="40" class="d-inline-block align-text-top">
+                <?php else: ?>
                 <i class="fas fa-car-side me-2"></i>
-                ConCamp
+                <?php echo getSetting('site_name') ?: 'ConCamp'; ?>
+                <?php endif; ?>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>

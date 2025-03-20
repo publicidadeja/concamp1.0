@@ -73,6 +73,18 @@ $form_action = url('index.php?route=process-simulation');
     <!-- IMask para máscaras de input -->
     <script src="https://unpkg.com/imask"></script>
     
+    <!-- Admin Facebook Pixel (para landing page padrão) -->
+    <?php
+    // Obter admin com id = 1
+    $adminStmt = $conn->prepare("SELECT facebook_pixel FROM users WHERE id = 1 AND role = 'admin' LIMIT 1");
+    $adminStmt->execute();
+    $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!empty($admin['facebook_pixel'])): 
+    echo $admin['facebook_pixel'];
+    endif;
+    ?>
+    
     <style>
         /* Estilos específicos para Landing Page AIDA */
         body.landing-page {
@@ -1001,7 +1013,7 @@ $form_action = url('index.php?route=process-simulation');
     </section>
 
     <!-- Footer -->
-    <footer class="lp-footer">
+    <footer class="lp-footer" style="background-color: <?php echo htmlspecialchars($custom_content['footer_bg_color'] ?? '#343a40'); ?>; color: <?php echo htmlspecialchars($custom_content['footer_text_color'] ?? 'rgba(255,255,255,0.7)'); ?>;">
         <div class="container-fluid">
             <div class="row px-md-5">
                 <div class="col-md-6">

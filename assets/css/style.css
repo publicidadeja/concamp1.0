@@ -494,6 +494,7 @@ a:hover {
     .container-fluid {
         padding-left: 15px;
         padding-right: 15px;
+        max-width: 100%;
     }
     
     .lp-seller-bar {
@@ -559,6 +560,127 @@ a:hover {
 
 .slide-up {
     animation: slideUp 0.5s ease-in-out;
+}
+
+/* Animação de pulse para notificações */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Estilos para o sistema de notificações */
+.notification-bell {
+    font-size: 1.2rem;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.notification-badge {
+    transform: translate(-50%, -50%) !important;
+    font-size: 0.65rem;
+    padding: 0.25rem 0.4rem;
+}
+
+/* Quando há notificações não lidas, animar o ícone */
+.notification-bell.has-unread {
+    color: var(--bs-primary);
+    animation: pulse 2s infinite;
+}
+
+.notification-dropdown {
+    width: 320px;
+    padding: 0;
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    overflow: hidden;
+}
+
+.notification-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #eee;
+}
+
+.notification-body {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.notification-footer {
+    background-color: #f8f9fa;
+}
+
+.notification-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f1f1f1;
+    transition: all 0.2s ease;
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+.notification-item:hover {
+    background-color: #f8f9fa;
+}
+
+.notification-item.unread {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+.notification-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: #f1f8ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.notification-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #333;
+    margin-bottom: 2px;
+}
+
+.notification-text {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 2px;
+}
+
+.notification-time {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.mark-all-read {
+    color: var(--bs-primary);
+    font-size: 0.8rem;
+}
+
+.mark-all-read:hover {
+    text-decoration: underline !important;
+}
+
+/* Efeito de transição para as notificações */
+.notification-item {
+    transform-origin: top;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Animação de entrada para novas notificações */
+@keyframes newNotification {
+    0% { transform: translateX(20px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+
+.notification-item.new {
+    animation: newNotification 0.5s ease-in-out;
 }
 
 /* Estilização para mensagens de erro e sucesso */
@@ -634,6 +756,12 @@ a:hover {
     border-radius: 15px;
     border: none;
     box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+/* Assegurando que container-fluid sempre seja full-width em todos os breakpoints */
+.container-fluid {
+    max-width: 100%;
+    width: 100%;
 }
 
 .card:hover {

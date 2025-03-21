@@ -45,10 +45,16 @@ $cta_text = $custom_content['cta_text'] ?? "Quero simular agora!";
 $benefit_title = $custom_content['benefit_title'] ?? "Por que escolher contratos premiados?";
 $featured_car = $custom_content['featured_car'] ?? null;
 $seller_photo = $custom_content['seller_photo'] ?? null;
+$footer_bg_color = $custom_content['footer_bg_color'] ?? "#343a40";
+$footer_text_color = $custom_content['footer_text_color'] ?? "rgba(255,255,255,0.7)";
 
 // Título da página (personalizado com o nome do vendedor)
 $page_title = "Contrato Premiado - $seller_name";
 $body_class = "landing-page";
+
+// Definir uma variável global para evitar o rodapé duplicado
+// Essa variável será verificada em templates/footer.php
+$skip_global_footer = true;
 ?>
 
 <!DOCTYPE html>
@@ -83,9 +89,14 @@ $body_class = "landing-page";
     <script src="https://unpkg.com/imask"></script>
     
     <!-- Facebook Pixel Code -->
-    <?php if (!empty($seller['facebook_pixel'])): ?>
-    <?php echo $seller['facebook_pixel']; ?>
-    <?php endif; ?>
+    <?php
+    // Verificar se existe configuração de pixel para este vendedor
+    $pixelKey = 'facebook_pixel_' . $seller_id;
+    $pixelCode = getSetting($pixelKey, '');
+    if (!empty($pixelCode)) {
+        echo $pixelCode;
+    }
+    ?>
     
     <style>
         /* Estilos específicos para Landing Page AIDA */

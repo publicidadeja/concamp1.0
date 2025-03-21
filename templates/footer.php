@@ -2,6 +2,9 @@
 // Verificar se é página do painel
 $current_route = $_GET['route'] ?? 'home';
 $is_dashboard = !in_array($current_route, ['home', 'login', 'register', 'forgot-password', 'reset-password', 'simulador', 'process-simulation', '404']);
+
+// Verificar se devemos pular o footer (para landing pages com footer próprio)
+$skip_global_footer = isset($skip_global_footer) && $skip_global_footer === true;
 ?>
 
 <?php if ($is_dashboard): ?>
@@ -23,7 +26,7 @@ $is_dashboard = !in_array($current_route, ['home', 'login', 'register', 'forgot-
         </div>
     </div>
 
-<?php else: ?>
+<?php elseif (!$skip_global_footer): ?>
     </main>
     
     <!-- Site Footer -->
@@ -102,6 +105,9 @@ $is_dashboard = !in_array($current_route, ['home', 'login', 'register', 'forgot-
 
 <!-- Dashboard JS -->
 <script src="<?php echo url('/assets/js/dashboard.js'); ?>"></script>
+
+<!-- Notifications JS -->
+<script src="<?php echo url('/assets/js/notifications.js'); ?>"></script>
 
 <!-- ChartJS -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

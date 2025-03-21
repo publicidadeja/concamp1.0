@@ -10,10 +10,25 @@ $body_class = "landing-page";
 // Definir variável global para evitar o rodapé duplicado
 $skip_global_footer = true;
 
-// Obter conteúdo personalizado do banco de dados (usando seller_id = 0 para a landing page padrão)
+// Primeiro, encontrar um usuário administrador existente para usar como referência
 $conn = getConnection();
-$stmt = $conn->prepare("SELECT * FROM seller_lp_content WHERE seller_id = 0 LIMIT 1");
+$stmt = $conn->prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
 $stmt->execute();
+$admin_user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Se não encontrar admin, usar o primeiro usuário disponível
+if (!$admin_user) {
+    $stmt = $conn->prepare("SELECT id FROM users LIMIT 1");
+    $stmt->execute();
+    $admin_user = $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// ID padrão para usar como referência
+$reference_id = $admin_user ? $admin_user['id'] : 1;
+
+// Obter conteúdo personalizado do banco de dados
+$stmt = $conn->prepare("SELECT * FROM seller_lp_content WHERE seller_id = :seller_id LIMIT 1");
+$stmt->execute(['seller_id' => $reference_id]);
 $custom_content = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // Definir conteúdos (usando valores do banco ou padrões)
@@ -22,15 +37,17 @@ $subheadline = $custom_content['subheadline'] ?? "Contratos premiados com parcel
 $cta_text = $custom_content['cta_text'] ?? "Quero simular agora!";
 $benefit_title = $custom_content['benefit_title'] ?? "Por que escolher contratos premiados?";
 $featured_car = $custom_content['featured_car'] ?? '';
+$footer_bg_color = $custom_content['footer_bg_color'] ?? "#343a40";
+$footer_text_color = $custom_content['footer_text_color'] ?? "rgba(255,255,255,0.7)";
 
 // Buscar depoimentos da landing page padrão
-$stmt = $conn->prepare("SELECT * FROM testimonials WHERE seller_id = 0 AND status = 'active' ORDER BY created_at DESC LIMIT 3");
-$stmt->execute();
+$stmt = $conn->prepare("SELECT * FROM testimonials WHERE seller_id = :seller_id AND status = 'active' ORDER BY created_at DESC LIMIT 6");
+$stmt->execute(['seller_id' => $reference_id]);
 $testimonials = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Buscar ganhadores para a landing page padrão
-$stmt = $conn->prepare("SELECT * FROM winners WHERE seller_id = 0 AND status = 'active' ORDER BY created_at DESC LIMIT 3");
-$stmt->execute();
+$stmt = $conn->prepare("SELECT * FROM winners WHERE seller_id = :seller_id AND status = 'active' ORDER BY created_at DESC LIMIT 6");
+$stmt->execute(['seller_id' => $reference_id]);
 $winners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Obter planos disponíveis
@@ -1027,7 +1044,7 @@ $form_action = url('index.php?route=process-simulation');
     </section>
 
     <!-- Footer -->
-    <footer class="lp-footer" style="background-color: <?php echo htmlspecialchars($custom_content['footer_bg_color'] ?? '#343a40'); ?>; color: <?php echo htmlspecialchars($custom_content['footer_text_color'] ?? 'rgba(255,255,255,0.7)'); ?>;">
+    <footer class="lp-footer" style="background-color: <?php echo htmlspecialchars($footer_bg_color); ?>; color: <?php echo htmlspecialchars($footer_text_color); ?>;">
         <div class="container-fluid">
             <div class="row px-md-5">
                 <div class="col-md-6">

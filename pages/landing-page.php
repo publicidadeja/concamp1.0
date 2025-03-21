@@ -105,6 +105,14 @@ $skip_global_footer = true;
             overflow-x: hidden;
         }
         
+        /* Garantir que container-fluid seja realmente full-width */
+        .container-fluid {
+            max-width: 100% !important;
+            width: 100% !important;
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+        
         /* ATTENTION (Hero section) */
         .lp-hero {
             position: relative;

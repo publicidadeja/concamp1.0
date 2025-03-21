@@ -7,6 +7,9 @@
 $page_title = "Contratos Premiados - Conquiste seu veículo agora";
 $body_class = "landing-page";
 
+// Definir variável global para evitar o rodapé duplicado
+$skip_global_footer = true;
+
 // Obter conteúdo personalizado do banco de dados (usando seller_id = 0 para a landing page padrão)
 $conn = getConnection();
 $stmt = $conn->prepare("SELECT * FROM seller_lp_content WHERE seller_id = 0 LIMIT 1");
@@ -75,14 +78,17 @@ $form_action = url('index.php?route=process-simulation');
     
     <!-- Admin Facebook Pixel (para landing page padrão) -->
     <?php
-    // Obter admin com id = 1
-    $adminStmt = $conn->prepare("SELECT facebook_pixel FROM users WHERE id = 1 AND role = 'admin' LIMIT 1");
-    $adminStmt->execute();
-    $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!empty($admin['facebook_pixel'])): 
-    echo $admin['facebook_pixel'];
-    endif;
+    // Verificar se a coluna facebook_pixel existe
+    try {
+        // Buscar configuração de pixel do Facebook das configurações globais
+        $pixelCode = getSetting('facebook_pixel_code', '');
+        if (!empty($pixelCode)) {
+            echo $pixelCode;
+        }
+    } catch (Exception $e) {
+        // Em caso de erro, simplesmente não exibe o pixel
+        error_log("Erro ao buscar código do Facebook Pixel: " . $e->getMessage());
+    }
     ?>
     
     <style>
@@ -90,6 +96,14 @@ $form_action = url('index.php?route=process-simulation');
         body.landing-page {
             font-family: 'Poppins', sans-serif;
             overflow-x: hidden;
+        }
+        
+        /* Garantir que container-fluid seja realmente full-width */
+        .container-fluid {
+            max-width: 100% !important;
+            width: 100% !important;
+            padding-left: 15px;
+            padding-right: 15px;
         }
         
         /* ATTENTION (Hero section) */

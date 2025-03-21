@@ -54,6 +54,35 @@ CREATE TABLE IF NOT EXISTS `winners` (
     CONSTRAINT `winners_ibfk_1` FOREIGN KEY (`seller_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Tabela de notificações do sistema
+CREATE TABLE IF NOT EXISTS `notifications` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `user_id` int(11) NOT NULL,
+    `title` varchar(100) NOT NULL,
+    `message` text NOT NULL,
+    `type` enum('lead', 'task', 'message', 'system') NOT NULL DEFAULT 'system',
+    `icon` varchar(50) DEFAULT 'fas fa-bell',
+    `color` varchar(20) DEFAULT 'primary',
+    `reference_id` int(11) DEFAULT NULL,
+    `reference_type` varchar(50) DEFAULT NULL,
+    `is_read` tinyint(1) NOT NULL DEFAULT 0,
+    `action_url` varchar(255) DEFAULT NULL,
+    `created_at` datetime NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `user_id` (`user_id`),
+    KEY `is_read` (`is_read`),
+    KEY `created_at` (`created_at`),
+    CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Adicionar colunas na tabela seller_lp_content se não existirem
 ALTER TABLE `seller_lp_content` ADD COLUMN IF NOT EXISTS `footer_bg_color` varchar(20) DEFAULT '#343a40';
 ALTER TABLE `seller_lp_content` ADD COLUMN IF NOT EXISTS `footer_text_color` varchar(20) DEFAULT 'rgba(255,255,255,0.7)';
+
+-- Adicionar colunas para os textos dos benefícios na landing page
+ALTER TABLE `seller_lp_content` ADD COLUMN IF NOT EXISTS `benefit_1_title` varchar(100) DEFAULT 'Parcelas Menores';
+ALTER TABLE `seller_lp_content` ADD COLUMN IF NOT EXISTS `benefit_1_text` varchar(255) DEFAULT 'Até 50% mais baratas que financiamentos tradicionais, sem juros abusivos.';
+ALTER TABLE `seller_lp_content` ADD COLUMN IF NOT EXISTS `benefit_2_title` varchar(100) DEFAULT 'Segurança Garantida';
+ALTER TABLE `seller_lp_content` ADD COLUMN IF NOT EXISTS `benefit_2_text` varchar(255) DEFAULT 'Contratos registrados e empresas autorizadas pelo Banco Central.';
+ALTER TABLE `seller_lp_content` ADD COLUMN IF NOT EXISTS `benefit_3_title` varchar(100) DEFAULT 'Contemplação Acelerada';
+ALTER TABLE `seller_lp_content` ADD COLUMN IF NOT EXISTS `benefit_3_text` varchar(255) DEFAULT 'Estratégias exclusivas para aumentar suas chances de contemplação rápida.';

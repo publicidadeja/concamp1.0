@@ -211,7 +211,7 @@ $stmt->execute();
 $available_terms = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
 // Gerar token CSRF
-$csrf_token = createCsrfToken();
+$csrf_token = generateCsrfToken();
 ?>
 
 <!-- Mensagens de feedback -->

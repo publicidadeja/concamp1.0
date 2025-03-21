@@ -7,7 +7,60 @@
  * Verificar se o usuário está logado
  */
 function isLoggedIn() {
-    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+    // Verificação normal por sessão
+    if (isset($_SESSION['user_id']) && !empty($_SESSION['user_id'])) {
+        return true;
+    }
+    
+    // Verificação específica para PWA - detecção ampliada
+    $is_pwa = isset($_SERVER['HTTP_USER_AGENT']) && 
+             (strpos($_SERVER['HTTP_USER_AGENT'], 'wv') !== false || 
+              strpos($_SERVER['HTTP_USER_AGENT'], 'Mobile') !== false ||
+              isset($_SERVER['HTTP_SEC_FETCH_MODE']) && $_SERVER['HTTP_SEC_FETCH_MODE'] === 'cors' ||
+              isset($_GET['pwa']) && $_GET['pwa'] === '1');
+    
+    // Se usuário está acessando notificações a partir do header, tratar como PWA
+    $from_header = isset($_GET['route']) && $_GET['route'] === 'notifications' && 
+                   isset($_GET['ref']) && $_GET['ref'] === 'header';
+                   
+    if ($is_pwa || $from_header) {
+        error_log("Verificação de autenticação PWA. User Agent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'N/A'));
+        
+        // Verificar se temos cookies de PWA
+        if (isset($_COOKIE['pwa_user_id']) && isset($_COOKIE['pwa_auth_token'])) {
+            $user_id = (int)$_COOKIE['pwa_user_id'];
+            $token = $_COOKIE['pwa_auth_token'];
+            
+            // Validar o token no banco de dados
+            if (verifyPwaToken($user_id, $token)) {
+                $_SESSION['user_id'] = $user_id;
+                
+                // Agora precisamos buscar os dados do usuário para restaurar a sessão completa
+                $conn = getConnection();
+                $stmt = $conn->prepare("SELECT id, name, role FROM users WHERE id = :id AND status = 'active'");
+                $stmt->execute(['id' => $_SESSION['user_id']]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($user) {
+                    $_SESSION['user_name'] = $user['name'];
+                    $_SESSION['user_role'] = $user['role'];
+                    error_log("Sessão PWA restaurada via cookie para usuário: {$user['name']} ({$user['role']})");
+                    return true;
+                } else {
+                    error_log("Falha ao restaurar sessão PWA: usuário não encontrado ou inativo");
+                }
+            } else {
+                error_log("Falha ao restaurar sessão PWA: token inválido ou expirado");
+                // Limpar cookies inválidos
+                setcookie('pwa_user_id', '', time() - 3600, "/");
+                setcookie('pwa_auth_token', '', time() - 3600, "/");
+            }
+        }
+        
+        error_log("Verificação PWA falhou: Sem cookies válidos");
+    }
+    
+    return false;
 }
 
 /**
@@ -64,6 +117,47 @@ function login($email, $password) {
         $_SESSION['user_name'] = $user['name'];
         $_SESSION['user_role'] = $user['role'];
         
+        // Verificar se estamos em um dispositivo móvel ou PWA
+        $is_mobile = isset($_SERVER['HTTP_USER_AGENT']) && 
+                    (strpos($_SERVER['HTTP_USER_AGENT'], 'Mobile') !== false || 
+                     strpos($_SERVER['HTTP_USER_AGENT'], 'Android') !== false || 
+                     strpos($_SERVER['HTTP_USER_AGENT'], 'iPhone') !== false);
+        
+        $is_pwa = isset($_SERVER['HTTP_USER_AGENT']) && 
+                 (strpos($_SERVER['HTTP_USER_AGENT'], 'wv') !== false || 
+                  isset($_SERVER['HTTP_SEC_FETCH_MODE']) && $_SERVER['HTTP_SEC_FETCH_MODE'] === 'cors');
+        
+        // Para dispositivos móveis ou PWA, sempre definir cookies persistentes
+        if ($is_mobile || $is_pwa || isset($_GET['pwa'])) {
+            // Gerar token para PWA/mobile
+            $token = bin2hex(random_bytes(32));
+            $expires_in = 86400 * 30; // 30 dias em segundos
+            
+            // Salvar token no banco de dados
+            if (savePwaToken($user['id'], $token, $expires_in)) {
+                // Definir cookies com HttpOnly e Secure para maior segurança
+                $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
+                setcookie('pwa_user_id', $user['id'], [
+                    'expires' => time() + $expires_in,
+                    'path' => "/",
+                    'secure' => $secure,
+                    'httponly' => true,
+                    'samesite' => 'Lax'
+                ]);
+                setcookie('pwa_auth_token', $token, [
+                    'expires' => time() + $expires_in,
+                    'path' => "/",
+                    'secure' => $secure,
+                    'httponly' => true,
+                    'samesite' => 'Lax'
+                ]);
+                
+                error_log("Login: Cookies PWA definidos para usuário {$user['id']} ({$user['role']})");
+            } else {
+                error_log("Erro ao salvar token PWA para usuário {$user['id']}");
+            }
+        }
+        
         return true;
     }
     
@@ -79,6 +173,15 @@ function logout() {
     unset($_SESSION['user_name']);
     unset($_SESSION['user_role']);
     
+    // Limpar cookies de PWA
+    if (isset($_COOKIE['pwa_user_id'])) {
+        setcookie('pwa_user_id', '', time() - 3600, "/", "", false, true);
+    }
+    
+    if (isset($_COOKIE['pwa_auth_token'])) {
+        setcookie('pwa_auth_token', '', time() - 3600, "/", "", false, true);
+    }
+    
     // Destruir a sessão
     session_destroy();
     
@@ -91,6 +194,17 @@ function logout() {
  * para evitar duplicação.
  */
 // function hasPermission($required_role) { ... }
+
+/**
+ * Verificar se um e-mail já está cadastrado
+ */
+function emailExists($email) {
+    $conn = getConnection();
+    $stmt = $conn->prepare("SELECT id FROM users WHERE email = :email");
+    $stmt->execute(['email' => $email]);
+    
+    return $stmt->rowCount() > 0;
+}
 
 /**
  * Criar um novo usuário
@@ -146,36 +260,11 @@ function createUser($name, $email, $password, $role = 'seller') {
 // function getUserById($id) { ... }
 
 /**
+ * Função removida:
  * Obter lista de usuários
+ * NOTA: Esta função foi movida para functions.php para evitar duplicação.
  */
-function getUsers($filters = []) {
-    $conn = getConnection();
-    
-    $sql = "SELECT id, name, email, role, status, created_at FROM users WHERE 1=1";
-    $params = [];
-    
-    if (!empty($filters['role'])) {
-        $sql .= " AND role = :role";
-        $params['role'] = $filters['role'];
-    }
-    
-    if (!empty($filters['status'])) {
-        $sql .= " AND status = :status";
-        $params['status'] = $filters['status'];
-    }
-    
-    if (!empty($filters['search'])) {
-        $sql .= " AND (name LIKE :search OR email LIKE :search)";
-        $params['search'] = '%' . $filters['search'] . '%';
-    }
-    
-    $sql .= " ORDER BY name ASC";
-    
-    $stmt = $conn->prepare($sql);
-    $stmt->execute($params);
-    
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
+// function getUsers($filters = []) {...}
 
 /**
  * Atualizar senha do usuário

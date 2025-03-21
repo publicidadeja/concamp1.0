@@ -113,6 +113,45 @@ $skip_global_footer = isset($skip_global_footer) && $skip_global_footer === true
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <?php endif; ?>
 
+<?php if ($is_logged_in): ?>
+<!-- Script para o menu móvel -->
+<script>
+// Adicionar classe ativa para o menu móvel baseado na rota
+document.addEventListener('DOMContentLoaded', function() {
+    // Detectar menu móvel
+    const mobileMenu = document.querySelector('.mobile-bottom-menu');
+    if (!mobileMenu) return;
+    
+    // Obter a rota atual
+    const currentRoute = '<?php echo $current_route ?? ($route ?? "home"); ?>';
+    
+    // Destacar o item ativo no menu móvel
+    const menuItems = mobileMenu.querySelectorAll('.mobile-bottom-menu-item');
+    menuItems.forEach(item => {
+        // Verificar se este é o item ativo baseado na URL atual
+        if (item.href && item.href.includes(currentRoute)) {
+            item.classList.add('active');
+        }
+        
+        // Verificar para leads e lead-detail
+        if ((currentRoute === 'leads' || currentRoute === 'lead-detail') && 
+            item.href && item.href.includes('route=leads')) {
+            item.classList.add('active');
+        }
+        
+        // Verificar para rotas admin
+        if (currentRoute.startsWith('admin-') && 
+            item.href && item.href.includes('admin-settings')) {
+            item.classList.add('active');
+        }
+    });
+});
+</script>
+<?php endif; ?>
+
+<!-- PWA Script -->
+<script src="<?php echo url('/assets/js/pwa.js'); ?>"></script>
+
 <?php if (isset($extra_js)): ?>
 <!-- Extra JS -->
 <?php echo $extra_js; ?>

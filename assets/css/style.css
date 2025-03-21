@@ -73,6 +73,152 @@ a:hover {
 }
 */
 
+/* Mobile Menu Moderno */
+@media (max-width: 991.98px) {
+    .navbar {
+        padding: 0.75rem 1rem;
+    }
+    
+    .navbar-collapse {
+        background-color: #fff;
+        border-radius: 0 0 15px 15px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        padding: 1rem;
+        margin-top: 0.5rem;
+        max-height: calc(100vh - 70px);
+        overflow-y: auto;
+    }
+    
+    .navbar-toggler {
+        border: none;
+        padding: 0.4rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .navbar-toggler:focus {
+        box-shadow: none;
+        outline: none;
+    }
+    
+    .navbar-nav {
+        padding: 0.5rem 0;
+    }
+    
+    .navbar-nav .nav-item {
+        margin-bottom: 0.5rem;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        font-weight: 500;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        transition: all 0.3s ease;
+    }
+    
+    .navbar-nav .nav-link:hover,
+    .navbar-nav .nav-link:active {
+        background-color: rgba(13, 110, 253, 0.05);
+        transform: translateX(5px);
+    }
+    
+    .navbar-nav .nav-link i {
+        margin-right: 10px;
+        width: 20px;
+        text-align: center;
+        font-size: 1.1rem;
+    }
+    
+    /* Dropdown no mobile */
+    .navbar-nav .dropdown-menu {
+        border: none;
+        box-shadow: none;
+        background-color: rgba(13, 110, 253, 0.05);
+        padding: 0;
+        margin: 0;
+        border-radius: 8px;
+        margin-top: 0.5rem;
+    }
+    
+    .navbar-nav .dropdown-item {
+        padding: 0.75rem 1rem 0.75rem 3rem;
+        border-radius: 8px;
+        font-weight: 400;
+        transition: all 0.3s ease;
+    }
+    
+    .navbar-nav .dropdown-item:hover,
+    .navbar-nav .dropdown-item:active {
+        background-color: rgba(13, 110, 253, 0.1);
+    }
+    
+    /* Efeito nas transições para menu */
+    .navbar-collapse.collapsing {
+        height: auto;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .navbar-collapse.show {
+        animation: slideDown 0.3s ease forwards;
+    }
+    
+    @keyframes slideDown {
+        0% { opacity: 0; transform: translateY(-10px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Menu do usuário no Mobile */
+    .navbar-nav .dropdown-menu.user-dropdown {
+        padding: 0.5rem;
+    }
+    
+    .navbar-nav .user-info {
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        border-radius: 8px;
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+    
+    .navbar-nav .user-name {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .navbar-nav .user-role {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    
+    /* Separador de menu */
+    .navbar-nav .nav-divider {
+        height: 1px;
+        background-color: rgba(0, 0, 0, 0.1);
+        margin: 0.75rem 0;
+    }
+    
+    /* Botão para instalar PWA no menu mobile */
+    .navbar-nav .nav-link.pwa-install {
+        background-color: rgba(13, 110, 253, 0.1);
+        color: var(--bs-primary);
+        font-weight: 600;
+    }
+    
+    /* Notificações no menu mobile */
+    .mobile-notification-link {
+        position: relative;
+    }
+    
+    .mobile-notification-link .notification-badge {
+        position: absolute;
+        top: 0.5rem;
+        right: 1rem;
+    }
+}
+
 /* Hero section */
 .hero-section {
     padding: 80px 0;
@@ -835,4 +981,228 @@ a:hover {
     border-color: #128C7E;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Estilos para PWA */
+#pwaInstallModal .modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+#pwaInstallModal .modal-header {
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding: 1.25rem 1.5rem;
+}
+
+#pwaInstallModal .modal-footer {
+    border-top: 1px solid rgba(0,0,0,0.05);
+    padding: 1.25rem 1.5rem;
+}
+
+#pwaInstallModal .modal-body {
+    padding: 1.5rem;
+}
+
+/* Animação de instalação PWA */
+@keyframes pwaGlow {
+    0% { box-shadow: 0 0 0 rgba(13, 110, 253, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(13, 110, 253, 0.8); }
+    100% { box-shadow: 0 0 0 rgba(13, 110, 253, 0.5); }
+}
+
+#pwaInstall {
+    animation: pwaGlow 2s infinite;
+    transition: all 0.3s ease;
+}
+
+#pwaInstall:hover {
+    animation: none;
+    transform: scale(1.05);
+}
+
+/* Estilo para página offline */
+.offline-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+}
+
+/* Menu fixo inferior estilo app para dispositivos móveis */
+@media (max-width: 991.98px) {
+    body {
+        padding-bottom: 0 !important; /* Removido o padding extra já que não temos mais menu fixo */
+    }
+    
+    /* Estilos aprimorados para o menu hambúrguer */
+    .navbar-toggler {
+        border: none;
+        padding: 0.8rem;
+        border-radius: 12px;
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+    
+    .navbar-toggler:hover {
+        background-color: #e9ecef;
+    }
+    
+    .navbar-toggler:focus {
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+        outline: none;
+    }
+    
+    .navbar-toggler-icon {
+        width: 1.3em;
+        height: 1.3em;
+    }
+    
+    /* Melhoria no dropdown do menu */
+    .navbar-collapse {
+        background-color: #fff;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        padding: 1.5rem;
+        margin-top: 0.75rem;
+        max-height: 85vh;
+        overflow-y: auto;
+        /* Scroll suave em dispositivos iOS */
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Estilização para os ícones do menu mobile */
+    .menu-icon-mobile {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background-color: #f5f7fa;
+        border-radius: 10px;
+        margin-right: 15px !important;
+        font-size: 1rem;
+        color: #6c757d;
+        transition: all 0.3s ease;
+    }
+    
+    /* Estilização para links de navegação */
+    .navbar-nav .nav-item {
+        margin-bottom: 8px;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 12px 15px;
+        border-radius: 12px;
+        background-color: #fff;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        color: #495057;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+    }
+    
+    .navbar-nav .nav-link:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
+    }
+    
+    .navbar-nav .nav-link.active {
+        background-color: rgba(13, 110, 253, 0.1);
+        color: var(--bs-primary, #0d6efd);
+        border-left: 3px solid var(--bs-primary, #0d6efd);
+    }
+    
+    .navbar-nav .nav-link.active .menu-icon-mobile {
+        background-color: var(--bs-primary, #0d6efd);
+        color: #fff;
+        box-shadow: 0 4px 10px rgba(13, 110, 253, 0.3);
+    }
+    
+    /* Melhorando o estilo do dropdown em dispositivos móveis */
+    .navbar-nav .dropdown-menu {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        padding: 0.5rem;
+        margin-top: 8px;
+        background-color: #f8f9fa;
+    }
+    
+    .navbar-nav .dropdown-item {
+        padding: 12px 15px;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .navbar-nav .dropdown-item:hover,
+    .navbar-nav .dropdown-item:active {
+        background-color: rgba(13, 110, 253, 0.1);
+        color: var(--bs-primary, #0d6efd);
+    }
+    
+    .navbar-nav .dropdown-item.active {
+        background-color: rgba(13, 110, 253, 0.15);
+        color: var(--bs-primary, #0d6efd);
+        font-weight: 500;
+    }
+    
+    /* Melhorando o separador */
+    .navbar-nav .nav-divider {
+        height: 1px;
+        background: linear-gradient(to right, rgba(0,0,0,0.03), rgba(0,0,0,0.1), rgba(0,0,0,0.03));
+        margin: 15px 0;
+        border-radius: 1px;
+    }
+    
+    /* Animação suave para abertura do menu */
+    .navbar-collapse.show {
+        animation: slideInDown 0.3s ease-out forwards;
+    }
+    
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Estilização para o botão de instalar PWA */
+    .nav-link.pwa-install {
+        background-color: rgba(13, 110, 253, 0.1);
+        border: 1px solid rgba(13, 110, 253, 0.2);
+    }
+    
+    /* Estilização para o bloco de informações do usuário */
+    .user-info {
+        background-color: #f8f9fa;
+        border-radius: 15px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .user-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #212529;
+    }
+    
+    .user-role {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+}
+    
+    /* Footer não precisa mais de margem extra */
 }

@@ -3,9 +3,12 @@
  * API para upload de logo
  */
 
-// Suprimir todos os avisos e erros
-error_reporting(0);
-ini_set('display_errors', 0);
+// Ativar exibição de erros para debug
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Criar log para rastreamento de erros
+error_log("Upload logo iniciado: " . date('Y-m-d H:i:s'));
 
 // Iniciar sessão e incluir arquivos necessários
 @session_start();
@@ -89,9 +92,8 @@ try {
     
     error_log("Diretório de upload: " . $upload_dir);
     
-    // Gerar nome de arquivo único
-    $file_extension = pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION);
-    $file_name = 'logo_' . time() . '.' . $file_extension;
+    // Gerar nome de arquivo seguro
+    $file_name = generateSecureFilename($_FILES['logo']['name'], 'logo');
     $file_path = $upload_dir . '/' . $file_name;
     
     // Mover o arquivo enviado para o diretório de destino

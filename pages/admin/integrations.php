@@ -42,7 +42,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_whatsapp') {
 $whatsapp_token = getSetting('whatsapp_token') ?: '';
 
 // Gerar token CSRF
-$csrf_token = createCsrfToken();
+$csrf_token = generateCsrfToken();
 ?>
 
 <!-- Mensagens de feedback -->

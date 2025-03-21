@@ -51,10 +51,11 @@ if (!$is_admin) {
 // Obter leads com paginação
 $leads_data = getLeads($filters, $page, $per_page);
 $leads = $leads_data['leads'];
-$total_pages = $leads_data['total_pages'];
+$pages = $leads_data['pages'];
 
 // Obter vendedores (apenas para admin)
 $sellers = $is_admin ? getUsersByRole('seller') : [];
+
 ?>
 
 <div class="row mb-4">
@@ -178,7 +179,16 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                             </td>
                             <td>
                                 <div class="dropdown">
-                                    <span class="badge lead-status-badge badge-<?php echo $lead['status']; ?>" data-lead-id="<?php echo $lead['id']; ?>" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span class="badge bg-<?php 
+                                    switch ($lead['status']) {
+                                        case 'new': echo 'primary'; break;
+                                        case 'contacted': echo 'info'; break;
+                                        case 'negotiating': echo 'warning'; break;
+                                        case 'converted': echo 'success'; break;
+                                        case 'lost': echo 'danger'; break;
+                                        default: echo 'secondary';
+                                    }
+                                    ?>" data-lead-id="<?php echo $lead['id']; ?>" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                         <?php 
                                         switch ($lead['status']) {
                                             case 'new': echo 'Novo'; break;
@@ -207,7 +217,7 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                             </td>
                             <td><?php echo formatDate($lead['created_at']); ?></td>
                             <td>
-                                <div class="table-action">
+                                <div class="d-flex gap-1">
                                     <a href="index.php?route=lead-detail&id=<?php echo $lead['id']; ?>" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver detalhes">
                                         <i class="fas fa-eye"></i>
                                     </a>
@@ -223,7 +233,7 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
         </div>
         
         <!-- Paginação -->
-        <?php if ($total_pages > 1): ?>
+        <?php if ($pages > 1): ?>
             <nav aria-label="Page navigation" class="mt-4">
                 <ul class="pagination justify-content-center">
                     <?php if ($page > 1): ?>
@@ -234,7 +244,7 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                         </li>
                     <?php endif; ?>
                     
-                    <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                    <?php for ($i = 1; $i <= $pages; $i++): ?>
                         <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
                             <a class="page-link" href="index.php?route=leads&page=<?php echo $i; ?><?php echo http_build_query(array_filter($filters)); ?>">
                                 <?php echo $i; ?>
@@ -242,7 +252,7 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                         </li>
                     <?php endfor; ?>
                     
-                    <?php if ($page < $total_pages): ?>
+                    <?php if ($page < $pages): ?>
                         <li class="page-item">
                             <a class="page-link" href="index.php?route=leads&page=<?php echo $page + 1; ?><?php echo http_build_query(array_filter($filters)); ?>" aria-label="Next">
                                 <span aria-hidden="true">&raquo;</span>

@@ -55,9 +55,9 @@ $leadData = [
 ];
 
 // Salvar lead no banco de dados
-$lead_id = saveLead($leadData);
+$result = saveLead($leadData);
 
-if (!$lead_id) {
+if (!$result['success']) {
     // Erro ao salvar
     $_SESSION['error_message'] = 'Ocorreu um erro ao processar sua simulação. Por favor, tente novamente.';
     header('Location: index.php?route=simulador');
@@ -97,7 +97,7 @@ if ($template) {
         $admin_id = 1; // ID do usuário admin
         
         registerSentMessage(
-            $lead_id,
+            $result['lead_id'],
             $admin_id,
             $message,
             $template['id'],
@@ -119,5 +119,6 @@ $_SESSION['simulation_data'] = [
     'other_installments' => $other_installments
 ];
 
-header('Location: index.php?route=home&simulation_success=true');
+// Redirecionar para a home (que agora é a landing page)
+header('Location: index.php?simulation_success=true');
 exit;

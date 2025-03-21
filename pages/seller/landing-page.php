@@ -32,8 +32,9 @@ $featured_car = $custom_content['featured_car'] ?? '';
 $footer_bg_color = $custom_content['footer_bg_color'] ?? "#343a40";
 $footer_text_color = $custom_content['footer_text_color'] ?? "rgba(255,255,255,0.7)";
 
-// Obter Pixel do Facebook do vendedor
-$facebook_pixel = $user['facebook_pixel'] ?? '';
+// Obter Pixel do Facebook do vendedor (via configurações)
+$facebook_pixel_key = 'facebook_pixel_' . $user_id;
+$facebook_pixel = getSetting($facebook_pixel_key, '');
 
 // Buscar depoimentos do vendedor
 $stmt = $conn->prepare("SELECT * FROM testimonials WHERE seller_id = :seller_id AND status = 'active' ORDER BY created_at DESC");
@@ -57,20 +58,47 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_footer_colors') {
         $footer_bg_color = sanitize($_POST['footer_bg_color'] ?? '#343a40');
         $footer_text_color = sanitize($_POST['footer_text_color'] ?? 'rgba(255,255,255,0.7)');
         
-        // Verificar se já existe um registro
-        if ($custom_content) {
-            // Atualizar registro existente
-            $stmt = $conn->prepare("UPDATE seller_lp_content SET 
-                footer_bg_color = :footer_bg_color, 
-                footer_text_color = :footer_text_color, 
-                updated_at = NOW() 
-                WHERE seller_id = :seller_id");
-        } else {
-            // Criar novo registro
-            $stmt = $conn->prepare("INSERT INTO seller_lp_content 
-                (seller_id, footer_bg_color, footer_text_color, created_at, updated_at) 
-                VALUES 
-                (:seller_id, :footer_bg_color, :footer_text_color, NOW(), NOW())");
+        // Verificar existência das colunas
+        try {
+            // Verificar se as colunas existem
+            $checkFooterBgStmt = $conn->prepare("SHOW COLUMNS FROM seller_lp_content LIKE 'footer_bg_color'");
+            $checkFooterBgStmt->execute();
+            $footerBgExists = $checkFooterBgStmt->rowCount() > 0;
+            
+            $checkFooterTextStmt = $conn->prepare("SHOW COLUMNS FROM seller_lp_content LIKE 'footer_text_color'");
+            $checkFooterTextStmt->execute();
+            $footerTextExists = $checkFooterTextStmt->rowCount() > 0;
+            
+            // Adicionar colunas se não existirem
+            if (!$footerBgExists) {
+                $conn->prepare("ALTER TABLE seller_lp_content ADD COLUMN footer_bg_color varchar(20) DEFAULT '#343a40'")->execute();
+                error_log("Coluna 'footer_bg_color' adicionada à tabela seller_lp_content");
+            }
+            
+            if (!$footerTextExists) {
+                $conn->prepare("ALTER TABLE seller_lp_content ADD COLUMN footer_text_color varchar(20) DEFAULT '#f8f9fa'")->execute();
+                error_log("Coluna 'footer_text_color' adicionada à tabela seller_lp_content");
+            }
+            
+            // Verificar se já existe um registro
+            if ($custom_content) {
+                // Atualizar registro existente
+                $stmt = $conn->prepare("UPDATE seller_lp_content SET 
+                    footer_bg_color = :footer_bg_color, 
+                    footer_text_color = :footer_text_color, 
+                    updated_at = NOW() 
+                    WHERE seller_id = :seller_id");
+            } else {
+                // Criar novo registro
+                $stmt = $conn->prepare("INSERT INTO seller_lp_content 
+                    (seller_id, footer_bg_color, footer_text_color, created_at, updated_at) 
+                    VALUES 
+                    (:seller_id, :footer_bg_color, :footer_text_color, NOW(), NOW())");
+            }
+        } catch (PDOException $e) {
+            error_log("Erro ao processar cores do rodapé: " . $e->getMessage());
+            $error = 'Erro ao processar: ' . $e->getMessage();
+            return;
         }
         
         $result = $stmt->execute([
@@ -110,9 +138,13 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_landing_page') {
                 $result = updateUser($user_id, [
                     'landing_page_name' => $landing_page_name,
                     'whatsapp_token' => $whatsapp_token,
-                    'phone' => $phone,
-                    'facebook_pixel' => $facebook_pixel
+                    'phone' => $phone
                 ]);
+                
+                // Salvar o Facebook Pixel nas configurações
+                if (!empty($facebook_pixel)) {
+                    setSetting('facebook_pixel_' . $user_id, $facebook_pixel);
+                }
 
                 if ($result['success']) {
                     $message = 'Dados básicos da landing page atualizados com sucesso!';
@@ -246,23 +278,41 @@ if (isset($_POST['action']) && $_POST['action'] === 'upload_seller_photo') {
                 if (move_uploaded_file($_FILES['seller_photo_image']['tmp_name'], $targetFile)) {
                     $relativeFilePath = 'uploads/seller_photos/' . $fileName;
                     
-                    // Atualizar o caminho da imagem no banco de dados
-                    if ($custom_content) {
-                        $stmt = $conn->prepare("UPDATE seller_lp_content SET seller_photo = :seller_photo, updated_at = NOW() WHERE seller_id = :seller_id");
-                    } else {
-                        $stmt = $conn->prepare("INSERT INTO seller_lp_content (seller_id, seller_photo, created_at, updated_at) VALUES (:seller_id, :seller_photo, NOW(), NOW())");
-                    }
-                    
-                    $result = $stmt->execute([
-                        'seller_id' => $user_id,
-                        'seller_photo' => $relativeFilePath
-                    ]);
-                    
-                    if ($result) {
-                        $seller_photo = $relativeFilePath;
-                        $message = 'Sua foto foi atualizada com sucesso!';
-                    } else {
-                        $error = 'Erro ao atualizar imagem no banco de dados.';
+                    // Verificar existência da coluna seller_photo
+                    try {
+                        // Tentar buscar a coluna
+                        $checkColumnStmt = $conn->prepare("SHOW COLUMNS FROM seller_lp_content LIKE 'seller_photo'");
+                        $checkColumnStmt->execute();
+                        $columnExists = $checkColumnStmt->rowCount() > 0;
+                        
+                        if (!$columnExists) {
+                            // Adicionar a coluna se não existir
+                            $addColumnStmt = $conn->prepare("ALTER TABLE seller_lp_content ADD COLUMN seller_photo varchar(255) DEFAULT NULL");
+                            $addColumnStmt->execute();
+                            error_log("Coluna 'seller_photo' adicionada à tabela seller_lp_content");
+                        }
+                        
+                        // Atualizar o caminho da imagem no banco de dados
+                        if ($custom_content) {
+                            $stmt = $conn->prepare("UPDATE seller_lp_content SET seller_photo = :seller_photo, updated_at = NOW() WHERE seller_id = :seller_id");
+                        } else {
+                            $stmt = $conn->prepare("INSERT INTO seller_lp_content (seller_id, seller_photo, created_at, updated_at) VALUES (:seller_id, :seller_photo, NOW(), NOW())");
+                        }
+                        
+                        $result = $stmt->execute([
+                            'seller_id' => $user_id,
+                            'seller_photo' => $relativeFilePath
+                        ]);
+                        
+                        if ($result) {
+                            $seller_photo = $relativeFilePath;
+                            $message = 'Sua foto foi atualizada com sucesso!';
+                        } else {
+                            $error = 'Erro ao atualizar imagem no banco de dados.';
+                        }
+                    } catch (PDOException $e) {
+                        error_log("Erro ao processar upload da foto do vendedor: " . $e->getMessage());
+                        $error = 'Erro ao processar o upload: ' . $e->getMessage();
                     }
                 } else {
                     $error = 'Erro ao fazer upload da imagem.';
@@ -490,8 +540,49 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_winner') {
     }
 }
 
+// Criar SQL para adicionar colunas se não existirem
+if (isset($_GET['fix_columns']) && $_GET['fix_columns'] === '1') {
+    try {
+        $conn = getConnection();
+        $columnsToCheck = [
+            'seller_photo' => "varchar(255) DEFAULT NULL",
+            'footer_bg_color' => "varchar(20) DEFAULT '#343a40'",
+            'footer_text_color' => "varchar(20) DEFAULT '#f8f9fa'",
+        ];
+        
+        $missingColumns = [];
+        $existingColumns = [];
+        
+        // Verificar cada coluna
+        foreach ($columnsToCheck as $column => $definition) {
+            $checkColumnStmt = $conn->prepare("SHOW COLUMNS FROM seller_lp_content LIKE '$column'");
+            $checkColumnStmt->execute();
+            $columnExists = $checkColumnStmt->rowCount() > 0;
+            
+            if (!$columnExists) {
+                // Adicionar a coluna se não existir
+                $addColumnStmt = $conn->prepare("ALTER TABLE seller_lp_content ADD COLUMN $column $definition");
+                $addColumnStmt->execute();
+                $missingColumns[] = $column;
+            } else {
+                $existingColumns[] = $column;
+            }
+        }
+        
+        if (!empty($missingColumns)) {
+            $message = "Colunas adicionadas com sucesso: " . implode(', ', $missingColumns);
+        } elseif (!empty($existingColumns)) {
+            $message = "Todas as colunas já existem na tabela: " . implode(', ', $existingColumns);
+        } else {
+            $message = "Nenhuma ação foi necessária";
+        }
+    } catch (PDOException $e) {
+        $error = 'Erro ao verificar ou adicionar colunas: ' . $e->getMessage();
+    }
+}
+
 // Gerar token CSRF
-$csrf_token = createCsrfToken();
+$csrf_token = generateCsrfToken();
 ?>
 
 <!-- Mensagens de feedback -->
@@ -795,6 +886,44 @@ $csrf_token = createCsrfToken();
                     <i class="fas fa-info-circle me-2"></i>Você ainda não tem ganhadores cadastrados. Adicione clientes contemplados para demonstrar resultados concretos na sua landing page.
                 </div>
                 <?php else: ?>
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h6 class="mb-3">Prévia da seção "Clientes Contemplados"</h6>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-1"></i> Assim é como a seção de Clientes Contemplados aparecerá na sua landing page.
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-4" style="background-color: #f5f7fa; padding: 20px; border-radius: 8px;">
+                    <?php foreach ($winners as $index => $winner): ?>
+                        <?php if ($index < 3): // Mostrar apenas os 3 primeiros na prévia ?>
+                        <div class="col-md-4 mb-3">
+                            <div class="lp-winner-card" style="background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); height: 100%;">
+                                <div class="lp-winner-image" style="height: 200px; overflow: hidden;">
+                                    <?php if (!empty($winner['photo']) && file_exists(__DIR__ . '/../../' . $winner['photo'])): ?>
+                                    <img src="<?php echo url($winner['photo']); ?>" alt="<?php echo htmlspecialchars($winner['name']); ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <?php else: ?>
+                                    <div style="width: 100%; height: 100%; background-color: #f5f5f5; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                        <div style="font-size: 2rem; margin-bottom: 10px; color: #aaa;">🚗</div>
+                                        <div style="color: #666; text-align: center; padding: 0 20px;">Veículo Contemplado</div>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="lp-winner-content" style="padding: 20px;">
+                                    <h4 class="lp-winner-title" style="font-weight: 600; margin-bottom: 10px;"><?php echo htmlspecialchars($winner['name']); ?></h4>
+                                    <p class="lp-winner-desc" style="color: #666; font-size: 0.9rem; margin-bottom: 15px;"><?php echo htmlspecialchars($winner['vehicle_model']); ?> - R$ <?php echo number_format($winner['credit_amount'], 2, ',', '.'); ?></p>
+                                    <div class="lp-winner-date" style="color: #999; font-size: 0.85rem; display: flex; align-items: center;">
+                                        <i class="far fa-calendar-alt" style="margin-right: 5px;"></i>
+                                        <?php echo date('d/m/Y', strtotime($winner['contemplation_date'])); ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </div>
+                
+                <h6 class="mb-3">Lista de Clientes Contemplados</h6>
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -815,8 +944,8 @@ $csrf_token = createCsrfToken();
                                 <td>R$ <?php echo number_format($winner['credit_amount'], 2, ',', '.'); ?></td>
                                 <td><?php echo date('d/m/Y', strtotime($winner['contemplation_date'])); ?></td>
                                 <td>
-                                    <?php if (!empty($winner['photo'])): ?>
-                                    <img src="<?php echo url($winner['photo']); ?>" alt="Foto" width="50" height="50" class="rounded-circle">
+                                    <?php if (!empty($winner['photo']) && file_exists(__DIR__ . '/../../' . $winner['photo'])): ?>
+                                    <img src="<?php echo url($winner['photo']); ?>" alt="Foto" width="70" height="50" style="object-fit: cover;" class="rounded">
                                     <?php else: ?>
                                     <span class="badge bg-secondary">Sem foto</span>
                                     <?php endif; ?>

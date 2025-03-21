@@ -52,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 `status` enum('active','inactive') NOT NULL DEFAULT 'active',
                 `landing_page_name` varchar(255) DEFAULT NULL,
                 `whatsapp_token` varchar(255) DEFAULT NULL,
+                `phone` varchar(20) DEFAULT NULL,
                 `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (`id`),
@@ -163,6 +164,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 UNIQUE KEY `setting_key` (`setting_key`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             
+            // Tabela de conteúdo personalizado da landing page do vendedor
+            $conn->exec("CREATE TABLE IF NOT EXISTS `seller_lp_content` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `seller_id` int(11) NOT NULL,
+                `headline` varchar(100) DEFAULT NULL,
+                `subheadline` varchar(150) DEFAULT NULL,
+                `cta_text` varchar(50) DEFAULT NULL,
+                `benefit_title` varchar(100) DEFAULT NULL,
+                `featured_car` varchar(255) DEFAULT NULL,
+                `created_at` datetime NOT NULL,
+                `updated_at` datetime NOT NULL,
+                PRIMARY KEY (`id`),
+                KEY `seller_id` (`seller_id`),
+                CONSTRAINT `seller_lp_content_ibfk_1` FOREIGN KEY (`seller_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            
+            // Tabela de depoimentos
+            $conn->exec("CREATE TABLE IF NOT EXISTS `testimonials` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `seller_id` int(11) NOT NULL,
+                `name` varchar(100) NOT NULL,
+                `city` varchar(100) DEFAULT NULL,
+                `content` text NOT NULL,
+                `photo` varchar(255) DEFAULT NULL,
+                `status` enum('active','inactive') DEFAULT 'active',
+                `created_at` datetime NOT NULL,
+                PRIMARY KEY (`id`),
+                KEY `seller_id` (`seller_id`),
+                CONSTRAINT `testimonials_ibfk_1` FOREIGN KEY (`seller_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            
+            // Tabela de ganhadores
+            $conn->exec("CREATE TABLE IF NOT EXISTS `winners` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `seller_id` int(11) NOT NULL,
+                `name` varchar(100) NOT NULL,
+                `vehicle_model` varchar(100) NOT NULL,
+                `credit_amount` decimal(10,2) NOT NULL,
+                `contemplation_date` date NOT NULL,
+                `photo` varchar(255) DEFAULT NULL,
+                `status` enum('active','inactive') DEFAULT 'active',
+                `created_at` datetime NOT NULL,
+                PRIMARY KEY (`id`),
+                KEY `seller_id` (`seller_id`),
+                CONSTRAINT `winners_ibfk_1` FOREIGN KEY (`seller_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            
             // Inserir configurações padrão
             $stmt = $conn->prepare("INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES (:key, :value)");
             $stmt->execute(['key' => 'company_name', 'value' => 'ConCamp']);
@@ -240,6 +288,9 @@ foreach ($plans as $plan) {
     ]);
 }
 
+// Definir mensagem padrão para template
+$default_message = "Olá {{nome}}, obrigado pelo seu contato. Um de nossos consultores entrará em contato em breve.";
+
 // Inserir configurações padrão
 $default_settings = [
     ['company_name', 'ConCamp'],
@@ -252,7 +303,8 @@ $default_settings = [
     ['notification_email', $admin_email]
 ];
 
-$stmt = $conn->prepare("INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES (:key, :value)");
+// Usar INSERT ... ON DUPLICATE KEY UPDATE para evitar erros de chave duplicada
+$stmt = $conn->prepare("INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES (:key, :value) ON DUPLICATE KEY UPDATE `setting_value` = :value");
 foreach ($default_settings as $setting) {
     $stmt->execute(['key' => $setting[0], 'value' => $setting[1]]);
 }
@@ -268,26 +320,11 @@ $message_templates = [
         'name' => 'Lembrete de Reunião',
         'category' => 'meeting',
         'content' => "Olá {nome}! Confirmando nossa reunião para {data_reuniao}..."
-    ]
-    // Adicione mais templates conforme necessário
-];
-
-$stmt = $conn->prepare("INSERT INTO `message_templates` (`name`, `category`, `content`) VALUES (:name, :category, :content)");
-foreach ($message_templates as $template) {
-    $stmt->execute([
-        'name' => $template['name'],
-        'category' => $template['category'],
-        'content' => $template['content']
-    ]);
-}
-
-// Após cada operação de criação de tabela
-if (!$result) {
-    throw new PDOException("Erro ao criar tabela: " . implode(" ", $conn->errorInfo()));
-}
-            
-            // Inserir modelo de mensagem padrão para simulação
-            $default_message = "Olá {nome}! Aqui está sua simulação de Contrato Premiado ConCamp:
+    ],
+    [
+        'name' => 'Modelo de Simulação',
+        'category' => 'simulation',
+        'content' => "Olá {nome}! Aqui está sua simulação de Contrato Premiado ConCamp:
 
 📊 *SUA SIMULAÇÃO PERSONALIZADA*
 🚗 Tipo: {tipo_veiculo}
@@ -301,19 +338,32 @@ if (!$result) {
 • Você começa a concorrer após o pagamento da 2ª parcela
 • Possibilidade de quitar 100% do contrato
 • Empresa com mais de 20 anos no mercado
-• Mais de 400 prêmios já entregues
+• Mais de 400 prêmios já entregues"
+    ]
+    // Adicione mais templates conforme necessário
+];
 
-Quer saber mais detalhes ou agendar uma apresentação? Estou à disposição! 😊
+// Inserir os templates e tratar possíveis erros
+try {
+    $stmt = $conn->prepare("INSERT INTO `message_templates` (`name`, `category`, `content`) VALUES (:name, :category, :content)");
+    
+    foreach ($message_templates as $template) {
+        $stmt->execute([
+            'name' => $template['name'],
+            'category' => $template['category'],
+            'content' => $template['content']
+        ]);
+    }
+    
+    // Operação bem-sucedida
+    $result = true;
+} catch (PDOException $e) {
+    // Tratar erro específico para essa operação
+    $result = false;
+    throw new PDOException("Erro ao inserir templates de mensagem: " . $e->getMessage());
+}
 
-*{nome_consultor}*
-Consultor(a) ConCamp";
-
-            $stmt = $conn->prepare("INSERT INTO `message_templates` 
-                (`name`, `category`, `content`) 
-                VALUES ('Mensagem Padrão para Simulação', 'simulation', :content)");
-            $stmt->execute(['content' => $default_message]);
-            
-            // Criar arquivo de configuração
+// Criar arquivo de configuração
             $config_content = "<?php
 // Configurações do banco de dados
 define('DB_HOST', '$db_host');

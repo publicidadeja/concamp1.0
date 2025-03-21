@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .progress {
+            height: 20px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #007bff;
+            border-radius: 4px;
+            color: white;
+            text-align: center;
+            line-height: 20px;
+            transition: width 0.3s;
+        }
+        .preview {
+            margin-top: 20px;
+            display: none;
+        }
+        .preview img {
+            max-width: 200px;
+            max-height: 200px;
+            border: 1px solid #ddd;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            display: none;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teste de Upload de Arquivo</h1>
+    
+    <div class="form-group">
+        <label for="testType">Selecione o tipo de teste:</label>
+        <select id="testType">
+            <option value="test">API de Teste Simples</option>
+            <option value="simplified">API Simplificada</option>
+            <option value="favicon">API de Favicon</option>
+            <option value="pwa">API de Ícone PWA</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="fileUpload">Selecione um arquivo:</label>
+        <input type="file" id="fileUpload" accept="image/*">
+    </div>
+    
+    <button id="uploadBtn">Enviar Arquivo</button>
+    
+    <div class="progress" id="uploadProgress">
+        <div class="progress-bar" id="progressBar" style="width: 0%;">0%</div>
+    </div>
+    
+    <div class="preview" id="imagePreview">
+        <h3>Pré-visualização:</h3>
+        <img id="previewImg" src="#" alt="Pré-visualização">
+    </div>
+    
+    <div class="response" id="responseContainer">
+        <h3>Resposta do Servidor:</h3>
+        <pre id="responseText"></pre>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileUpload = document.getElementById('fileUpload');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const testType = document.getElementById('testType');
+            const uploadProgress = document.getElementById('uploadProgress');
+            const progressBar = document.getElementById('progressBar');
+            const imagePreview = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImg');
+            const responseContainer = document.getElementById('responseContainer');
+            const responseText = document.getElementById('responseText');
+            
+            // Quando um arquivo é selecionado, mostrar a pré-visualização
+            fileUpload.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImg.src = e.target.result;
+                        imagePreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // Quando o botão de upload é clicado
+            uploadBtn.addEventListener('click', function() {
+                const file = fileUpload.files[0];
+                if (!file) {
+                    alert('Por favor, selecione um arquivo para enviar.');
+                    return;
+                }
+                
+                // Determinar a URL do endpoint com base no tipo de teste
+                let apiUrl;
+                switch (testType.value) {
+                    case 'test':
+                        apiUrl = 'api/upload-test.php';
+                        break;
+                    case 'simplified':
+                        apiUrl = 'api/upload-simplified.php';
+                        break;
+                    case 'favicon':
+                        apiUrl = 'api/upload-favicon.php';
+                        break;
+                    case 'pwa':
+                        apiUrl = 'api/upload-pwa-icon.php';
+                        break;
+                    default:
+                        apiUrl = 'api/upload-test.php';
+                }
+                
+                // Preparar FormData
+                const formData = new FormData();
+                formData.append('image', file);
+                
+                // Configurar XMLHttpRequest
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', apiUrl, true);
+                
+                // Monitorar progresso
+                xhr.upload.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        progressBar.style.width = percentComplete + '%';
+                        progressBar.textContent = percentComplete + '%';
+                        uploadProgress.style.display = 'block';
+                    }
+                };
+                
+                // Quando o upload terminar
+                xhr.onload = function() {
+                    responseContainer.style.display = 'block';
+                    responseText.textContent = 'Status: ' + xhr.status + '\n\n' + xhr.responseText;
+                    
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            alert('Upload realizado com sucesso!');
+                        } else {
+                            alert('Erro no upload: ' + (response.error || 'Erro desconhecido'));
+                        }
+                    } catch (e) {
+                        console.error('Erro ao processar resposta:', e);
+                        alert('Erro ao processar resposta do servidor: ' + e.message);
+                    }
+                };
+                
+                // Se ocorrer um erro
+                xhr.onerror = function() {
+                    responseContainer.style.display = 'block';
+                    responseText.textContent = 'Erro na comunicação com o servidor.';
+                    alert('Erro na comunicação com o servidor.');
+                };
+                
+                // Enviar requisição
+                xhr.send(formData);
+            });
+        });
+    </script>
+</body>
+</html>

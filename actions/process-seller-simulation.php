@@ -58,9 +58,9 @@ $leadData = [
 ];
 
 // Salvar lead
-$lead_id = saveLead($leadData);
+$result = saveLead($leadData);
 
-if (!$lead_id) {
+if (!$result['success']) {
     $_SESSION['error_message'] = 'Ocorreu um erro ao processar sua simulação. Por favor, tente novamente.';
     header('Location: index.php?route=home'); // Redirecionar para home
     exit;
@@ -91,7 +91,7 @@ if ($whatsapp_token) {
 
         if (isset($result['success']) && $result['success']) {
             registerSentMessage(
-                $lead_id,
+                $result['lead_id'],
                 $seller_id, // Registrar a mensagem como enviada pelo vendedor
                 $message,
                 $template['id'],

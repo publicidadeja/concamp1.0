@@ -90,7 +90,7 @@ if (!empty($search)) {
 $users = getUsers($filters);
 
 // Gerar token CSRF
-$csrf_token = createCsrfToken();
+$csrf_token = generateCsrfToken();
 ?>
 
 <!-- Mensagens de feedback -->

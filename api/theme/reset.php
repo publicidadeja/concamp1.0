@@ -61,7 +61,7 @@ try {
         'defaults' => $defaults
     ]);
 } catch (Exception $e) {
-    if (isset($conn) && $conn instanceof PDO) {
+    if (isset($conn) && $conn instanceof PDO && $conn->inTransaction()) {
         $conn->rollBack();
     }
     

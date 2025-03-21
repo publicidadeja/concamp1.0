@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Winner Placeholder Image</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .instruction {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        
+        pre {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        
+        .preview {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .winner-placeholder {
+            width: 600px;
+            height: 400px;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #666;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            margin: 0 auto;
+        }
+        
+        .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="instruction">
+        <h1>Instructions to Create Winner Placeholder Image</h1>
+        
+        <p>Since we cannot directly create an image file in this environment, here are instructions for creating a winner-default.jpg file:</p>
+        
+        <h2>Option 1: Use an existing image</h2>
+        <p>Copy any existing image and rename it to winner-default.jpg:</p>
+        <pre>cp /mnt/c/xampp/htdocs/concamp/uploads/winners/1742485085_Design-sem-nome-26.jpg /mnt/c/xampp/htdocs/concamp/assets/img/winner-default.jpg</pre>
+        
+        <h2>Option 2: Create a simple placeholder image</h2>
+        <p>Create a simple 600x400 gray image with text "No Photo Available" using an image creation tool like Photoshop, GIMP, or an online service.</p>
+        
+        <h2>Option 3: Use a placeholder service</h2>
+        <p>Use a placeholder image service URL in the code:</p>
+        <pre>&lt;img src="https://via.placeholder.com/600x400/f5f5f5/666666?text=No+Photo+Available" alt="Placeholder"&gt;</pre>
+        
+        <h3>Preview of placeholder image:</h3>
+        <div class="preview">
+            <div class="winner-placeholder">
+                <div class="icon">🚗</div>
+                <h2>No Photo Available</h2>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

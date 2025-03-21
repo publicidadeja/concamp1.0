@@ -48,6 +48,14 @@ $seller_photo = $custom_content['seller_photo'] ?? null;
 $footer_bg_color = $custom_content['footer_bg_color'] ?? "#343a40";
 $footer_text_color = $custom_content['footer_text_color'] ?? "rgba(255,255,255,0.7)";
 
+// Benefícios
+$benefit_1_title = $custom_content['benefit_1_title'] ?? "Parcelas Menores";
+$benefit_1_text = $custom_content['benefit_1_text'] ?? "Até 50% mais baratas que financiamentos tradicionais, sem juros abusivos.";
+$benefit_2_title = $custom_content['benefit_2_title'] ?? "Segurança Garantida";
+$benefit_2_text = $custom_content['benefit_2_text'] ?? "Contratos registrados e empresas autorizadas pelo Banco Central.";
+$benefit_3_title = $custom_content['benefit_3_title'] ?? "Contemplação Acelerada";
+$benefit_3_text = $custom_content['benefit_3_text'] ?? "Estratégias exclusivas para aumentar suas chances de contemplação rápida.";
+
 // Título da página (personalizado com o nome do vendedor)
 $page_title = "Contrato Premiado - $seller_name";
 $body_class = "landing-page";
@@ -758,8 +766,8 @@ $skip_global_footer = true;
                         <div class="lp-benefit-icon">
                             <i class="fas fa-money-bill-wave"></i>
                         </div>
-                        <h3 class="lp-benefit-title">Parcelas Menores</h3>
-                        <p>Até 50% mais baratas que financiamentos tradicionais, sem juros abusivos.</p>
+                        <h3 class="lp-benefit-title"><?php echo htmlspecialchars($benefit_1_title); ?></h3>
+                        <p><?php echo htmlspecialchars($benefit_1_text); ?></p>
                     </div>
                 </div>
                 <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
@@ -767,8 +775,8 @@ $skip_global_footer = true;
                         <div class="lp-benefit-icon">
                             <i class="fas fa-shield-alt"></i>
                         </div>
-                        <h3 class="lp-benefit-title">Segurança Garantida</h3>
-                        <p>Contratos registrados e empresas autorizadas pelo Banco Central.</p>
+                        <h3 class="lp-benefit-title"><?php echo htmlspecialchars($benefit_2_title); ?></h3>
+                        <p><?php echo htmlspecialchars($benefit_2_text); ?></p>
                     </div>
                 </div>
                 <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
@@ -776,8 +784,8 @@ $skip_global_footer = true;
                         <div class="lp-benefit-icon">
                             <i class="fas fa-trophy"></i>
                         </div>
-                        <h3 class="lp-benefit-title">Contemplação Acelerada</h3>
-                        <p>Estratégias exclusivas para aumentar suas chances de contemplação rápida.</p>
+                        <h3 class="lp-benefit-title"><?php echo htmlspecialchars($benefit_3_title); ?></h3>
+                        <p><?php echo htmlspecialchars($benefit_3_text); ?></p>
                     </div>
                 </div>
             </div>
@@ -825,10 +833,13 @@ $skip_global_footer = true;
                 <div class="col-md-4" data-aos="fade-up" data-aos-delay="<?php echo $index * 100; ?>">
                     <div class="lp-winner-card">
                         <div class="lp-winner-image">
-                            <?php if (!empty($winner['photo'])): ?>
+                            <?php if (!empty($winner['photo']) && file_exists(__DIR__ . '/../' . $winner['photo'])): ?>
                             <img src="<?php echo url($winner['photo']); ?>" alt="<?php echo htmlspecialchars($winner['name']); ?>">
                             <?php else: ?>
-                            <img src="<?php echo url('assets/img/winner-default.jpg'); ?>" alt="<?php echo htmlspecialchars($winner['name']); ?>">
+                            <div style="width: 100%; height: 100%; background-color: #f5f5f5; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                <div style="font-size: 2rem; margin-bottom: 10px; color: #aaa;">🚗</div>
+                                <div style="color: #666; text-align: center; padding: 0 20px;">Veículo Contemplado</div>
+                            </div>
                             <?php endif; ?>
                         </div>
                         <div class="lp-winner-content">
@@ -1051,7 +1062,7 @@ $skip_global_footer = true;
     </section>
 
     <!-- Footer -->
-    <footer class="lp-footer" style="background-color: <?php echo htmlspecialchars($custom_content['footer_bg_color'] ?? '#343a40'); ?>; color: <?php echo htmlspecialchars($custom_content['footer_text_color'] ?? 'rgba(255,255,255,0.7)'); ?>;">
+    <footer class="lp-footer" style="background-color: <?php echo htmlspecialchars($footer_bg_color); ?>; color: <?php echo htmlspecialchars($footer_text_color); ?>;">
         <div class="container-fluid">
             <div class="row px-md-5">
                 <div class="col-md-6">

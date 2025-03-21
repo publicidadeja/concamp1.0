@@ -10,7 +10,10 @@ $body_class = $body_class ?? '';
 // Verificar se o usuário está logado
 $is_logged_in = isLoggedIn();
 $current_user = $is_logged_in ? getCurrentUser() : null;
-$user_role = $current_user ? $current_user['role'] : '';
+$user_role = (is_array($current_user) && isset($current_user['role'])) ? $current_user['role'] : '';
+
+// Obter a rota atual para destacar menu ativo
+$route = $_GET['route'] ?? 'home';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -19,6 +22,26 @@ $user_role = $current_user ? $current_user['role'] : '';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?></title>
     
+    <!-- Meta tags para PWA -->
+    <meta name="description" content="Sistema para gerenciamento de contratos premiados de carros e motos">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ConCamp">
+    
+    <!-- Favicon -->
+    <?php if (getSetting('favicon_url')): ?>
+    <link rel="icon" type="image/png" href="<?php echo url(getSetting('favicon_url')); ?>">
+    <link rel="shortcut icon" href="<?php echo url(getSetting('favicon_url')); ?>">
+    <?php else: ?>
+    <link rel="icon" type="image/png" href="<?php echo url('assets/img/icons/favicon.png'); ?>">
+    <link rel="shortcut icon" href="<?php echo url('assets/img/icons/favicon.png'); ?>">
+    <?php endif; ?>
+    
+    <!-- Links para o PWA -->
+    <link rel="manifest" href="<?php echo url('manifest.json'); ?>">
+    <link rel="apple-touch-icon" href="<?php echo url(getSetting('pwa_icon_url') ?: 'assets/img/icons/icon-192x192.png'); ?>">
+    
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     
@@ -26,7 +49,7 @@ $user_role = $current_user ? $current_user['role'] : '';
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     
     <!-- Custom CSS -->
-    <link href="<?php echo url('assets/css/style.css'); ?>" rel="stylesheet">
+    <link href="<?php echo url('assets/css/style.css?v=' . time()); ?>" rel="stylesheet">
     
     <?php if ($is_logged_in): ?>
     <link href="<?php echo url('assets/css/dashboard.css'); ?>" rel="stylesheet">
@@ -67,9 +90,54 @@ $user_role = $current_user ? $current_user['role'] : '';
     
     <!-- IMask para máscaras de input -->
     <script src="https://unpkg.com/imask"></script>
+    
+    <?php if (getSetting('pwa_enabled') === '1' || isset($_GET['pwa'])): ?>
+    <!-- Script do PWA -->
+    <script src="<?php echo url('assets/js/pwa.js?v=' . time()); ?>"></script>
+    
+    <!-- Script para forçar atualização do service worker -->
+    <script>
+    // Forçar atualização do service worker para resolver problemas de cache
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for (let registration of registrations) {
+                registration.update();
+                console.log('[Header] Service worker atualizado:', registration.scope);
+            }
+        });
+    }
+    </script>
+    <?php endif; ?>
 </head>
-<body class="<?php echo $body_class; ?> theme-applied">
+<?php 
+    // Definir classes de autenticação para o corpo
+    $auth_classes = '';
+    if ($is_logged_in) {
+        $auth_classes .= ' authenticated-user';
+        if ($user_role === 'admin') {
+            $auth_classes .= ' admin-user';
+        } elseif ($user_role === 'seller') {
+            $auth_classes .= ' seller-user';
+        }
+    }
+?>
+<body class="<?php echo $body_class; ?> theme-applied<?php echo $auth_classes; ?>"><?php echo "\n"; ?>
     <?php if ($is_logged_in): ?>
+    <?php 
+    // Calcula o número de notificações não lidas
+    $unread_count = 0;
+    if ($is_logged_in) {
+        // Verificar se a tabela notifications existe antes de contar
+        $conn = getConnection();
+        $stmt = $conn->prepare("SHOW TABLES LIKE 'notifications'");
+        $stmt->execute();
+        $table_exists = $stmt->rowCount() > 0;
+        
+        if ($table_exists && is_array($current_user) && isset($current_user['id'])) {
+            $unread_count = countUnreadNotifications($current_user['id']);
+        }
+    }
+    ?>
     <!-- Navbar para usuários logados -->
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
@@ -87,27 +155,60 @@ $user_role = $current_user ? $current_user['role'] : '';
                 <?php echo getSetting('site_name') ?: 'ConCamp'; ?>
                 <?php endif; ?>
             </a>
+            
+            <!-- Mobile Notification Bell - visível apenas em dispositivos móveis -->
+            <a class="d-lg-none ms-2 me-2 position-relative" href="<?php echo url('index.php?route=notifications&pwa=1&ref=header&role=' . $user_role); ?>">
+                <i class="fas fa-bell notification-bell"></i>
+                <?php if ($unread_count > 0): ?>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge">
+                    <?php echo $unread_count > 99 ? '99+' : $unread_count; ?>
+                    <span class="visually-hidden">Notificações não lidas</span>
+                </span>
+                <?php endif; ?>
+            </a>
+            
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    <!-- Informações do usuário (apenas visível no mobile) -->
+                    <li class="nav-item d-lg-none mb-3">
+                        <div class="user-info">
+                            <div class="user-name">
+                                <i class="fas fa-user-circle me-2"></i>
+                                <?php echo (is_array($current_user) && isset($current_user['name'])) ? $current_user['name'] : 'Usuário'; ?>
+                            </div>
+                            <div class="user-role">
+                                <?php 
+                                    $role_labels = [
+                                        'admin' => 'Administrador',
+                                        'manager' => 'Gerente',
+                                        'seller' => 'Vendedor'
+                                    ];
+                                    echo isset($role_labels[$user_role]) ? $role_labels[$user_role] : 'Usuário';
+                                ?>
+                            </div>
+                        </div>
+                    </li>
+                    
+                    <!-- Itens para desktop e mobile -->
                     <li class="nav-item">
-                        <a class="nav-link" href="<?php echo url('index.php?route=dashboard'); ?>">
-                            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                        <a class="nav-link <?php echo $route === 'dashboard' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=dashboard'); ?>">
+                            <i class="menu-icon-mobile fas fa-tachometer-alt me-1"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="<?php echo url('index.php?route=leads'); ?>">
-                            <i class="fas fa-users me-1"></i> Leads
+                        <a class="nav-link <?php echo $route === 'leads' || $route === 'lead-detail' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=leads'); ?>">
+                            <i class="menu-icon-mobile fas fa-users me-1"></i> Leads
                         </a>
                     </li>
                     
                     <?php if ($user_role === 'seller'): ?>
                     <!-- Menu específico para vendedores -->
                     <li class="nav-item">
-                        <a class="nav-link" href="<?php echo url('index.php?route=seller-landing-page'); ?>">
-                            <i class="fas fa-pager me-1"></i> Minha Landing Page
+                        <a class="nav-link <?php echo $route === 'seller-landing-page' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=seller-landing-page'); ?>">
+                            <i class="menu-icon-mobile fas fa-pager me-1"></i> Minha Landing Page
                         </a>
                     </li>
                     <?php endif; ?>
@@ -115,42 +216,151 @@ $user_role = $current_user ? $current_user['role'] : '';
                     <?php if ($user_role === 'admin'): ?>
                     <!-- Menu de administração -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-cog me-1"></i> Administração
+                        <a class="nav-link dropdown-toggle <?php echo strpos($route, 'admin-') === 0 ? 'active' : ''; ?>" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="menu-icon-mobile fas fa-cog me-1"></i> Administração
                         </a>
                         <ul class="dropdown-menu">
                             <li>
-                                <a class="dropdown-item" href="<?php echo url('index.php?route=admin-users'); ?>">
-                                    <i class="fas fa-users-cog me-1"></i> Usuários
+                                <a class="dropdown-item <?php echo $route === 'admin-users' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=admin-users'); ?>">
+                                    <i class="menu-icon-mobile fas fa-users-cog me-1"></i> Usuários
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="<?php echo url('index.php?route=admin-plans'); ?>">
-                                    <i class="fas fa-file-invoice-dollar me-1"></i> Planos
+                                <a class="dropdown-item <?php echo $route === 'admin-plans' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=admin-plans'); ?>">
+                                    <i class="menu-icon-mobile fas fa-file-invoice-dollar me-1"></i> Planos
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="<?php echo url('index.php?route=admin-settings'); ?>">
-                                    <i class="fas fa-sliders-h me-1"></i> Configurações
+                                <a class="dropdown-item <?php echo $route === 'admin-settings' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=admin-settings'); ?>">
+                                    <i class="menu-icon-mobile fas fa-sliders-h me-1"></i> Configurações
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="<?php echo url('index.php?route=admin-reports'); ?>">
-                                    <i class="fas fa-chart-bar me-1"></i> Relatórios
+                                <a class="dropdown-item <?php echo $route === 'admin-landing-page-settings' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=admin-landing-page-settings'); ?>">
+                                    <i class="menu-icon-mobile fas fa-palette me-1"></i> Cores da Landing Page
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item <?php echo $route === 'admin-landing-page-content' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=admin-landing-page-content'); ?>">
+                                    <i class="menu-icon-mobile fas fa-edit me-1"></i> Conteúdo da Landing Page
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item <?php echo $route === 'admin-reports' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=admin-reports'); ?>">
+                                    <i class="menu-icon-mobile fas fa-chart-bar me-1"></i> Relatórios
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item <?php echo $route === 'create-task-notification-field' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=create-task-notification-field'); ?>">
+                                    <i class="menu-icon-mobile fas fa-tasks me-1"></i> Configurar Notificações de Tarefas
                                 </a>
                             </li>
                         </ul>
                     </li>
                     <?php endif; ?>
+                    
+                    <!-- Separador para mobile -->
+                    <li class="nav-item d-lg-none">
+                        <div class="nav-divider"></div>
+                    </li>
+                    
+                    <!-- Link para instalar PWA (mobile) - sempre visível independente do perfil -->
+                    <?php if (getSetting('pwa_enabled') === '1' || isset($_GET['pwa'])): ?>
+                    <li class="nav-item d-lg-none">
+                        <a class="nav-link pwa-install" href="#" id="mobileMenuInstallPwa">
+                            <i class="menu-icon-mobile fas fa-download me-1"></i> Instalar como App
+                        </a>
+                    </li>
+                    <?php endif; ?>
+                    
+                    <!-- Link para sair (apenas mobile) -->
+                    <li class="nav-item d-lg-none">
+                        <a class="nav-link" href="<?php echo url('index.php?route=logout'); ?>">
+                            <i class="menu-icon-mobile fas fa-sign-out-alt me-1"></i> Sair
+                        </a>
+                    </li>
                 </ul>
                 
-                <ul class="navbar-nav">
+                <ul class="navbar-nav d-none d-lg-flex">
+                    <!-- Notification Bell Icon with Counter - visível apenas em desktop -->
+                    <li class="nav-item dropdown me-3">
+                        <a class="nav-link position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-bell notification-bell"></i>
+                            <?php if ($unread_count > 0): ?>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge">
+                                <?php echo $unread_count > 99 ? '99+' : $unread_count; ?>
+                                <span class="visually-hidden">Notificações não lidas</span>
+                            </span>
+                            <?php endif; ?>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-end notification-dropdown" aria-labelledby="notificationDropdown">
+                            <div class="notification-header d-flex justify-content-between align-items-center p-3">
+                                <h6 class="m-0">Notificações</h6>
+                                <?php if ($unread_count > 0): ?>
+                                <a href="#" class="text-decoration-none mark-all-read" data-user-id="<?php echo (is_array($current_user) && isset($current_user['id'])) ? $current_user['id'] : 0; ?>">
+                                    <small>Marcar todas como lidas</small>
+                                </a>
+                                <?php endif; ?>
+                            </div>
+                            <div class="notification-body">
+                                <?php 
+                                $notifications = [];
+                                if ($is_logged_in && isset($table_exists) && $table_exists && is_array($current_user) && isset($current_user['id'])) {
+                                    $notifications = getUserNotifications($current_user['id'], false, 5);
+                                }
+                                
+                                if (count($notifications) > 0): 
+                                    foreach ($notifications as $notification):
+                                ?>
+                                <a class="dropdown-item notification-item <?php echo $notification['is_read'] ? '' : 'unread'; ?>" 
+                                    href="<?php echo !empty($notification['action_url']) ? url($notification['action_url']) : '#'; ?>"
+                                    data-notification-id="<?php echo $notification['id']; ?>"
+                                    data-user-id="<?php echo (is_array($current_user) && isset($current_user['id'])) ? $current_user['id'] : 0; ?>">
+                                    <div class="d-flex align-items-center">
+                                        <div class="notification-icon me-3">
+                                            <i class="<?php echo $notification['icon']; ?> text-<?php echo $notification['color']; ?>"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <div class="notification-title"><?php echo $notification['title']; ?></div>
+                                            <div class="notification-text"><?php echo $notification['message']; ?></div>
+                                            <div class="notification-time">
+                                                <small><?php echo formatRelativeTime(strtotime($notification['created_at'])); ?></small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                                <?php 
+                                    endforeach; 
+                                else: 
+                                ?>
+                                <div class="text-center p-3">
+                                    <p class="text-muted mb-0">Nenhuma notificação</p>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="notification-footer text-center p-2 border-top">
+                                <a href="<?php echo url('index.php?route=notifications&pwa=1&ref=header&role=' . $user_role); ?>" class="text-decoration-none">
+                                    Ver todas
+                                </a>
+                            </div>
+                        </div>
+                    </li>
+                    
+                    <!-- User Dropdown (apenas desktop) -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user-circle me-1"></i>
-                            <?php echo $current_user['name']; ?>
+                            <?php echo (is_array($current_user) && isset($current_user['name'])) ? $current_user['name'] : 'Usuário'; ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
+                            <?php if (getSetting('pwa_enabled') === '1'): ?>
+                            <li>
+                                <a class="dropdown-item" href="#" id="menuInstallPwa">
+                                    <i class="fas fa-download me-1"></i> Instalar como App
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <?php endif; ?>
                             <li>
                                 <a class="dropdown-item" href="<?php echo url('index.php?route=logout'); ?>">
                                     <i class="fas fa-sign-out-alt me-1"></i> Sair
@@ -162,6 +372,8 @@ $user_role = $current_user ? $current_user['role'] : '';
             </div>
         </div>
     </nav>
+    
+    <!-- Removido o menu fixo inferior -->
     
     <!-- Mensagens de feedback -->
     <div class="container mt-3">

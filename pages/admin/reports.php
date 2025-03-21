@@ -68,11 +68,14 @@ switch ($report_type) {
         break;
     
     case 'sources':
-        // Obter dados de fontes de leads
-        $sql = "SELECT source, COUNT(*) as count
+        // Como a coluna 'source' não existe na tabela 'leads', vamos usar os dados disponíveis
+        // Vamos usar a coluna city como exemplo, mas você pode adaptar para usar os dados corretos
+        $sql = "SELECT 
+                COALESCE(city, 'Não especificado') as source, 
+                COUNT(*) as count
                 FROM leads
                 WHERE DATE(created_at) BETWEEN :date_from AND :date_to
-                GROUP BY source
+                GROUP BY city
                 ORDER BY count DESC";
         
         $stmt = $conn->prepare($sql);
@@ -89,7 +92,7 @@ switch ($report_type) {
 }
 
 // Gerar token CSRF
-$csrf_token = createCsrfToken();
+$csrf_token = generateCsrfToken();
 ?>
 
 <div class="row mb-4">
@@ -114,7 +117,7 @@ $csrf_token = createCsrfToken();
                     </li>
                     <li class="nav-item">
                         <a class="nav-link <?php echo $report_type === 'sources' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=admin-reports&type=sources'); ?>">
-                            <i class="fas fa-project-diagram me-2"></i>Origem dos Leads
+                            <i class="fas fa-map-marker-alt me-2"></i>Leads por Cidade
                         </a>
                     </li>
                 </ul>
@@ -305,12 +308,12 @@ $csrf_token = createCsrfToken();
                 </div>
                 
                 <?php elseif ($report_type === 'sources'): ?>
-                <!-- Relatório de Fontes de Leads -->
+                <!-- Relatório de Leads por Cidade -->
                 <div class="table-responsive">
                     <table class="table table-striped table-hover" id="reportTable">
                         <thead>
                             <tr>
-                                <th>Origem</th>
+                                <th>Cidade</th>
                                 <th>Quantidade</th>
                                 <th>Percentual</th>
                             </tr>
@@ -683,7 +686,7 @@ document.addEventListener('DOMContentLoaded', function() {
             plugins: {
                 title: {
                     display: true,
-                    text: 'Leads por Origem'
+                    text: 'Leads por Cidade'
                 }
             },
             scales: {
@@ -722,7 +725,7 @@ document.addEventListener('DOMContentLoaded', function() {
             plugins: {
                 title: {
                     display: true,
-                    text: 'Distribuição por Origem'
+                    text: 'Distribuição por Cidade'
                 }
             }
         }

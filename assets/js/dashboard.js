@@ -701,7 +701,7 @@ function completeTask(taskId) {
     showLoader();
     
     // Enviar requisição AJAX
-    fetch('index.php?route=api/task/complete', {
+    fetch('index.php?route=api-complete-task', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded'

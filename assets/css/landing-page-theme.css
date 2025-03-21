@@ -1,6 +1,6 @@
 /* 
  * ConCamp - CSS personalizado da Landing Page
- * Gerado automaticamente em 2025-03-20 18:36:30
+ * Gerado automaticamente em 2025-03-21 03:30:39
  */
 
 /* Cores principais da landing page */
@@ -12,6 +12,8 @@
     --lp-accent: #ff9800;
     --lp-hero-bg: #00053c;
     --lp-hero-text: #ffffff;
+    --lp-footer-bg-color: #00053c;
+    --lp-footer-text-color: #ffffff;
 }
 
 /* ATTENTION (Hero section) */
@@ -52,34 +54,13 @@
     background-color: #ffffff;
 }
 
-.lp-testimonial-card {
-    background-color: #ffffff;
-    box-shadow: 0 10px 30px rgba(0, 5, 60, 0.05);
-}
-
 .lp-testimonial-card::before {
     color: rgba(0, 5, 60, 0.1);
-}
-
-.lp-testimonial-name {
-    color: var(--lp-primary, #00053c);
 }
 
 /* DESIRE (Ganhadores) */
 .lp-winners {
     background: linear-gradient(135deg, #f5f7fa 0%, #dbdde0 100%);
-}
-
-.lp-winner-card {
-    background-color: #ffffff;
-}
-
-.lp-winner-card .card-title {
-    color: var(--lp-primary, #00053c);
-}
-
-.lp-winner-card .card-text strong {
-    color: var(--lp-primary-dark, #000009);
 }
 
 /* DESIRE (Urgência) */
@@ -92,15 +73,14 @@
     background: rgba(255, 255, 255, 0.15);
 }
 
-/* Footer */
+/* Footer - Cores definidas inline no HTML agora */
 .lp-footer {
-    background-color: #343a40;
-    color: rgba(255, 255, 255, 0.7);
+    /* As cores são definidas diretamente no HTML e usam as configurações do vendedor */
 }
 
 .lp-footer-contact-icon,
 .lp-footer h5 {
-    color: #00053c !important;
+    color: inherit;
 }
 
 .lp-footer-social-item:hover {

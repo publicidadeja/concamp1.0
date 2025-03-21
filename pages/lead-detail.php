@@ -60,7 +60,7 @@ if (count($name_parts) >= 2) {
 }
 
 // Formatar CSRF token
-$csrf_token = createCsrfToken();
+$csrf_token = generateCsrfToken();
 
 // Definir título da página com nome do lead
 $page_title = "Lead: " . $lead['name'];
@@ -244,10 +244,10 @@ $page_title = "Lead: " . $lead['name'];
             <!-- Timeline Tab -->
             <div class="tab-pane fade <?php echo $active_tab === 'timeline' ? 'show active' : ''; ?>" id="timeline" role="tabpanel" aria-labelledby="timeline-tab">
                 <div class="lead-detail-section">
-                    <?php if ($follow_up_data['total'] > 0): ?>
+                    <?php if (isset($follow_up_data['total']) && $follow_up_data['total'] > 0): ?>
                     <div class="items-count">
                         Mostrando <?php echo count($follow_ups); ?> de <?php echo $follow_up_data['total']; ?> registros 
-                        (Página <?php echo $timeline_page; ?> de <?php echo $follow_up_data['total_pages']; ?>)
+                        (Página <?php echo $timeline_page; ?> de <?php echo isset($follow_up_data['pages']) ? $follow_up_data['pages'] : 1; ?>)
                     </div>
                     <?php endif; ?>
                     
@@ -302,7 +302,7 @@ $page_title = "Lead: " . $lead['name'];
                             <?php endforeach; ?>
                         <?php endif; ?>
                         
-                        <?php if ($follow_up_data['total_pages'] > 1): ?>
+                        <?php if (isset($follow_up_data['pages']) && $follow_up_data['pages'] > 1): ?>
                         <!-- Paginação para Timeline -->
                         <nav aria-label="Navegação de timeline" class="mt-4">
                             <ul class="pagination justify-content-center">
@@ -314,7 +314,7 @@ $page_title = "Lead: " . $lead['name'];
                                 </li>
                                 <?php endif; ?>
                                 
-                                <?php for ($i = 1; $i <= $follow_up_data['total_pages']; $i++): ?>
+                                <?php for ($i = 1; $i <= $follow_up_data['pages']; $i++): ?>
                                 <li class="page-item <?php echo $i === $timeline_page ? 'active' : ''; ?>">
                                     <a class="page-link" href="?route=lead-detail&id=<?php echo $lead_id; ?>&timeline_page=<?php echo $i; ?>&messages_page=<?php echo $messages_page; ?>&tab=timeline">
                                         <?php echo $i; ?>
@@ -322,7 +322,7 @@ $page_title = "Lead: " . $lead['name'];
                                 </li>
                                 <?php endfor; ?>
                                 
-                                <?php if ($timeline_page < $follow_up_data['total_pages']): ?>
+                                <?php if ($timeline_page < $follow_up_data['pages']): ?>
                                 <li class="page-item">
                                     <a class="page-link" href="?route=lead-detail&id=<?php echo $lead_id; ?>&timeline_page=<?php echo $timeline_page + 1; ?>&messages_page=<?php echo $messages_page; ?>&tab=timeline" aria-label="Próximo">
                                         <span aria-hidden="true">&raquo;</span>
@@ -342,7 +342,7 @@ $page_title = "Lead: " . $lead['name'];
                     <?php if ($message_data['total'] > 0): ?>
                     <div class="items-count">
                         Mostrando <?php echo count($messages); ?> de <?php echo $message_data['total']; ?> mensagens
-                        (Página <?php echo $messages_page; ?> de <?php echo $message_data['total_pages']; ?>)
+                        (Página <?php echo $messages_page; ?> de <?php echo isset($message_data['pages']) ? $message_data['pages'] : 1; ?>)
                     </div>
                     <?php endif; ?>
                     
@@ -370,7 +370,7 @@ $page_title = "Lead: " . $lead['name'];
                             <?php endforeach; ?>
                         <?php endif; ?>
                         
-                        <?php if ($message_data['total_pages'] > 1): ?>
+                        <?php if (isset($message_data['pages']) && $message_data['pages'] > 1): ?>
                         <!-- Paginação para Mensagens -->
                         <nav aria-label="Navegação de mensagens" class="mt-4">
                             <ul class="pagination justify-content-center">
@@ -382,7 +382,7 @@ $page_title = "Lead: " . $lead['name'];
                                 </li>
                                 <?php endif; ?>
                                 
-                                <?php for ($i = 1; $i <= $message_data['total_pages']; $i++): ?>
+                                <?php for ($i = 1; $i <= $message_data['pages']; $i++): ?>
                                 <li class="page-item <?php echo $i === $messages_page ? 'active' : ''; ?>">
                                     <a class="page-link" href="?route=lead-detail&id=<?php echo $lead_id; ?>&timeline_page=<?php echo $timeline_page; ?>&messages_page=<?php echo $i; ?>&tab=messages">
                                         <?php echo $i; ?>
@@ -390,7 +390,7 @@ $page_title = "Lead: " . $lead['name'];
                                 </li>
                                 <?php endfor; ?>
                                 
-                                <?php if ($messages_page < $message_data['total_pages']): ?>
+                                <?php if (isset($message_data['pages']) && $messages_page < $message_data['pages']): ?>
                                 <li class="page-item">
                                     <a class="page-link" href="?route=lead-detail&id=<?php echo $lead_id; ?>&timeline_page=<?php echo $timeline_page; ?>&messages_page=<?php echo $messages_page + 1; ?>&tab=messages" aria-label="Próximo">
                                         <span aria-hidden="true">&raquo;</span>

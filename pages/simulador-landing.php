@@ -40,6 +40,14 @@ $featured_car = $custom_content['featured_car'] ?? '';
 $footer_bg_color = $custom_content['footer_bg_color'] ?? "#343a40";
 $footer_text_color = $custom_content['footer_text_color'] ?? "rgba(255,255,255,0.7)";
 
+// Benefícios
+$benefit_1_title = $custom_content['benefit_1_title'] ?? "Parcelas Menores";
+$benefit_1_text = $custom_content['benefit_1_text'] ?? "Até 50% mais baratas que financiamentos tradicionais, sem juros abusivos.";
+$benefit_2_title = $custom_content['benefit_2_title'] ?? "Segurança Garantida";
+$benefit_2_text = $custom_content['benefit_2_text'] ?? "Contratos registrados e empresas autorizadas pelo Banco Central.";
+$benefit_3_title = $custom_content['benefit_3_title'] ?? "Contemplação Acelerada";
+$benefit_3_text = $custom_content['benefit_3_text'] ?? "Estratégias exclusivas para aumentar suas chances de contemplação rápida.";
+
 // Buscar depoimentos da landing page padrão
 $stmt = $conn->prepare("SELECT * FROM testimonials WHERE seller_id = :seller_id AND status = 'active' ORDER BY created_at DESC LIMIT 6");
 $stmt->execute(['seller_id' => $reference_id]);
@@ -95,10 +103,16 @@ $form_action = url('index.php?route=process-simulation');
     
     <!-- Admin Facebook Pixel (para landing page padrão) -->
     <?php
-    // Verificar se a coluna facebook_pixel existe
     try {
-        // Buscar configuração de pixel do Facebook das configurações globais
-        $pixelCode = getSetting('facebook_pixel_code', '');
+        // Primeiro verificar se existe um pixel específico para o admin de referência
+        $admin_facebook_pixel_key = 'facebook_pixel_' . $reference_id;
+        $pixelCode = getSetting($admin_facebook_pixel_key, '');
+        
+        // Se não tiver um pixel específico, usar o global
+        if (empty($pixelCode)) {
+            $pixelCode = getSetting('facebook_pixel_code', '');
+        }
+        
         if (!empty($pixelCode)) {
             echo $pixelCode;
         }
@@ -759,8 +773,8 @@ $form_action = url('index.php?route=process-simulation');
                         <div class="lp-benefit-icon">
                             <i class="fas fa-money-bill-wave"></i>
                         </div>
-                        <h3 class="lp-benefit-title">Parcelas Menores</h3>
-                        <p>Até 50% mais baratas que financiamentos tradicionais, sem juros abusivos.</p>
+                        <h3 class="lp-benefit-title"><?php echo htmlspecialchars($benefit_1_title); ?></h3>
+                        <p><?php echo htmlspecialchars($benefit_1_text); ?></p>
                     </div>
                 </div>
                 <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
@@ -768,8 +782,8 @@ $form_action = url('index.php?route=process-simulation');
                         <div class="lp-benefit-icon">
                             <i class="fas fa-shield-alt"></i>
                         </div>
-                        <h3 class="lp-benefit-title">Segurança Garantida</h3>
-                        <p>Contratos registrados e empresas autorizadas pelo Banco Central.</p>
+                        <h3 class="lp-benefit-title"><?php echo htmlspecialchars($benefit_2_title); ?></h3>
+                        <p><?php echo htmlspecialchars($benefit_2_text); ?></p>
                     </div>
                 </div>
                 <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
@@ -777,8 +791,8 @@ $form_action = url('index.php?route=process-simulation');
                         <div class="lp-benefit-icon">
                             <i class="fas fa-trophy"></i>
                         </div>
-                        <h3 class="lp-benefit-title">Contemplação Acelerada</h3>
-                        <p>Estratégias exclusivas para aumentar suas chances de contemplação rápida.</p>
+                        <h3 class="lp-benefit-title"><?php echo htmlspecialchars($benefit_3_title); ?></h3>
+                        <p><?php echo htmlspecialchars($benefit_3_text); ?></p>
                     </div>
                 </div>
             </div>
@@ -1044,7 +1058,7 @@ $form_action = url('index.php?route=process-simulation');
     </section>
 
     <!-- Footer -->
-    <footer class="lp-footer" style="background-color: <?php echo htmlspecialchars($footer_bg_color); ?>; color: <?php echo htmlspecialchars($footer_text_color); ?>;">
+    <footer class="lp-footer">
         <div class="container-fluid">
             <div class="row px-md-5">
                 <div class="col-md-6">

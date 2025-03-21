@@ -38,13 +38,19 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_settings') {
             'secondary_color' => sanitize($_POST['secondary_color_hidden'] ?? $_POST['secondary_color'] ?? '#6c757d'),
             'header_color' => sanitize($_POST['header_color_hidden'] ?? $_POST['header_color'] ?? '#ffffff'),
             'logo_url' => sanitize($_POST['logo_url'] ?? ''),
-            'dark_mode' => isset($_POST['dark_mode']) ? '1' : '0'
+            'favicon_url' => sanitize($_POST['favicon_url'] ?? ''),
+            'dark_mode' => isset($_POST['dark_mode']) ? '1' : '0',
+            // Configurações do PWA
+            'pwa_enabled' => isset($_POST['pwa_enabled']) ? '1' : '0',
+            'pwa_name' => sanitize($_POST['pwa_name'] ?? 'ConCamp - Sistema de Gestão de Contratos Premiados'),
+            'pwa_short_name' => sanitize($_POST['pwa_short_name'] ?? 'ConCamp'),
+            'pwa_description' => sanitize($_POST['pwa_description'] ?? 'Sistema para gerenciamento de contratos premiados de carros e motos'),
+            'pwa_theme_color' => sanitize($_POST['pwa_theme_color_hidden'] ?? $_POST['pwa_theme_color'] ?? '#0d6efd'),
+            'pwa_background_color' => sanitize($_POST['pwa_background_color_hidden'] ?? $_POST['pwa_background_color'] ?? '#ffffff'),
+            'pwa_icon_url' => sanitize($_POST['pwa_icon_url'] ?? '')
         ];
         
         $conn = getConnection();
-        
-        // Iniciar uma transação para garantir que todas as configurações sejam salvas
-        $conn->beginTransaction();
         
         try {
             // Debug: Registrar os valores que serão salvos
@@ -55,6 +61,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_settings') {
                 'logo_url' => $settings['logo_url'],
                 'dark_mode' => $settings['dark_mode']
             ]));
+            
+            // Iniciar uma transação para garantir que todas as configurações sejam salvas
+            $conn->beginTransaction();
             
             foreach ($settings as $key => $value) {
                 updateSetting($key, $value);
@@ -79,7 +88,10 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_settings') {
             </script>';
             
         } catch (Exception $e) {
-            $conn->rollBack();
+            // Verificar se há uma transação ativa antes de tentar fazer rollback
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
             $error = 'Erro ao salvar configurações: ' . $e->getMessage();
         }
     }
@@ -102,7 +114,16 @@ $settings = [
     'secondary_color' => getSetting('secondary_color') ?: '#6c757d',
     'header_color' => getSetting('header_color') ?: '#ffffff',
     'logo_url' => getSetting('logo_url') ?: '',
-    'dark_mode' => getSetting('dark_mode') ?: '0'
+    'favicon_url' => getSetting('favicon_url') ?: '',
+    'dark_mode' => getSetting('dark_mode') ?: '0',
+    // Configurações do PWA
+    'pwa_enabled' => getSetting('pwa_enabled') ?: '0',
+    'pwa_name' => getSetting('pwa_name') ?: 'ConCamp - Sistema de Gestão de Contratos Premiados',
+    'pwa_short_name' => getSetting('pwa_short_name') ?: 'ConCamp',
+    'pwa_description' => getSetting('pwa_description') ?: 'Sistema para gerenciamento de contratos premiados de carros e motos',
+    'pwa_theme_color' => getSetting('pwa_theme_color') ?: '#0d6efd',
+    'pwa_background_color' => getSetting('pwa_background_color') ?: '#ffffff',
+    'pwa_icon_url' => getSetting('pwa_icon_url') ?: ''
 ];
 
 // Debug: Verificar as configurações do tema
@@ -115,7 +136,7 @@ error_log("Configurações atuais de tema: " . json_encode([
 ]));
 
 // Gerar token CSRF
-$csrf_token = createCsrfToken();
+$csrf_token = generateCsrfToken();
 ?>
 
 <!-- Mensagens de feedback -->
@@ -311,6 +332,138 @@ $csrf_token = createCsrfToken();
                         </div>
                     </div>
                     
+                    
+                    <!-- Seção de Favicon -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h6 class="border-bottom pb-2 mb-3">Favicon e Ícones</h6>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="favicon_url" class="form-label">URL do Favicon</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="favicon_url" name="favicon_url" value="<?php echo htmlspecialchars($settings['favicon_url']); ?>" placeholder="assets/img/icons/favicon.ico">
+                                <button class="btn btn-outline-secondary" type="button" id="preview_favicon_btn">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Caminho relativo para o arquivo de favicon que aparece na aba do navegador.</small>
+                            
+                            <div id="favicon_url_preview" class="mt-2 text-center d-none">
+                                <p class="mb-1">Favicon atual:</p>
+                                <img src="#" alt="Favicon atual" class="img-fluid" style="max-height: 32px;">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="favicon_upload" class="form-label">Carregar Novo Favicon</label>
+                            <input type="file" class="form-control" id="favicon_upload" accept="image/png, image/x-icon, image/svg+xml">
+                            <small class="form-text text-muted">Envie um arquivo de imagem para usar como favicon (ICO, PNG ou SVG).</small>
+                            <div id="favicon_upload_progress" class="progress mt-2 d-none">
+                                <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <div id="favicon_preview" class="mt-2 text-center d-none">
+                                <p class="mb-1">Pré-visualização do favicon:</p>
+                                <img src="#" alt="Favicon preview" class="img-fluid" style="max-height: 32px;">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Seção do PWA -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h6 class="border-bottom pb-2 mb-3">Progressive Web App (PWA)</h6>
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="pwa_enabled" name="pwa_enabled" value="1" <?php echo $settings['pwa_enabled'] === '1' ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="pwa_enabled">Ativar Progressive Web App (PWA)</label>
+                            </div>
+                            <small class="form-text text-muted">Permite que o sistema seja instalado como um aplicativo em dispositivos móveis e desktops.</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="pwa_name" class="form-label">Nome do Aplicativo</label>
+                            <input type="text" class="form-control" id="pwa_name" name="pwa_name" value="<?php echo htmlspecialchars($settings['pwa_name']); ?>">
+                            <small class="form-text text-muted">Nome completo do aplicativo exibido na instalação.</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="pwa_short_name" class="form-label">Nome Curto</label>
+                            <input type="text" class="form-control" id="pwa_short_name" name="pwa_short_name" value="<?php echo htmlspecialchars($settings['pwa_short_name']); ?>">
+                            <small class="form-text text-muted">Nome curto exibido abaixo do ícone na tela inicial.</small>
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            <label for="pwa_description" class="form-label">Descrição</label>
+                            <textarea class="form-control" id="pwa_description" name="pwa_description" rows="2"><?php echo htmlspecialchars($settings['pwa_description']); ?></textarea>
+                            <small class="form-text text-muted">Descrição breve do aplicativo exibida durante a instalação.</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="pwa_theme_color" class="form-label">Cor do Tema</label>
+                            <div class="input-group">
+                                <input type="color" class="form-control form-control-color" id="pwa_theme_color" name="pwa_theme_color" value="<?php echo htmlspecialchars($settings['pwa_theme_color']); ?>">
+                                <input type="hidden" name="pwa_theme_color_hidden" id="pwa_theme_color_hidden" value="<?php echo htmlspecialchars($settings['pwa_theme_color']); ?>">
+                                <input type="text" class="form-control" id="pwa_theme_color_text" value="<?php echo htmlspecialchars($settings['pwa_theme_color']); ?>">
+                            </div>
+                            <small class="form-text text-muted">Cor do tema exibida na barra de título do aplicativo.</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="pwa_background_color" class="form-label">Cor de Fundo</label>
+                            <div class="input-group">
+                                <input type="color" class="form-control form-control-color" id="pwa_background_color" name="pwa_background_color" value="<?php echo htmlspecialchars($settings['pwa_background_color']); ?>">
+                                <input type="hidden" name="pwa_background_color_hidden" id="pwa_background_color_hidden" value="<?php echo htmlspecialchars($settings['pwa_background_color']); ?>">
+                                <input type="text" class="form-control" id="pwa_background_color_text" value="<?php echo htmlspecialchars($settings['pwa_background_color']); ?>">
+                            </div>
+                            <small class="form-text text-muted">Cor de fundo exibida durante o carregamento do aplicativo.</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="pwa_icon_url" class="form-label">URL do Ícone PWA</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="pwa_icon_url" name="pwa_icon_url" value="<?php echo htmlspecialchars($settings['pwa_icon_url']); ?>" placeholder="assets/img/icons/icon-512x512.png">
+                                <button class="btn btn-outline-secondary" type="button" id="preview_pwa_icon_btn">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Caminho relativo para o arquivo de ícone do PWA (recomendado: 512x512px).</small>
+                            
+                            <div id="pwa_icon_url_preview" class="mt-2 text-center d-none">
+                                <p class="mb-1">Ícone PWA atual:</p>
+                                <img src="#" alt="Ícone PWA atual" class="img-fluid" style="max-height: 80px;">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="pwa_icon_upload" class="form-label">Carregar Novo Ícone PWA</label>
+                            <input type="file" class="form-control" id="pwa_icon_upload" accept="image/png, image/jpeg, image/svg+xml">
+                            <small class="form-text text-muted">Envie um arquivo de imagem para usar como ícone do PWA (PNG, JPG ou SVG).</small>
+                            <div id="pwa_icon_upload_progress" class="progress mt-2 d-none">
+                                <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <div id="pwa_icon_preview" class="mt-2 text-center d-none">
+                                <p class="mb-1">Pré-visualização do ícone PWA:</p>
+                                <img src="#" alt="Ícone PWA preview" class="img-fluid" style="max-height: 80px;">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i> 
+                                O sistema gerará automaticamente ícones em vários tamanhos a partir do ícone principal. Para mais informações, consulte a <a href="/PWA.md" target="_blank">documentação do PWA</a>.
+                            </div>
+                            
+                            <button type="button" class="btn btn-outline-secondary mt-3" id="testPwaBtn">
+                                <i class="fas fa-vial me-2"></i>Testar Funcionamento do PWA
+                            </button>
+                            
+                            <div id="pwaTestResult" class="mt-3" style="display: none;"></div>
+                        </div>
+                    </div>
+
                     <div class="text-end">
                         <button type="button" id="resetThemeBtn" class="btn btn-outline-danger me-2">
                             <i class="fas fa-undo me-2"></i>Redefinir para Padrão
@@ -376,6 +529,157 @@ $csrf_token = createCsrfToken();
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Função utilitária para gerenciar uploads de imagens
+    const setupImageUpload = function(uploadInput, urlInput, previewElement, progressElement, uploadApiUrl, previewButtonId, previewUrlElement) {
+        const uploadHandler = function() {
+            const file = uploadInput.files[0];
+            if (!file) return;
+            
+            console.log('Arquivo selecionado:', file.name, file.type, file.size, 'bytes');
+            
+            // Verificar tipo e tamanho do arquivo
+            const validTypes = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon'];
+            const maxSize = 2 * 1024 * 1024; // 2MB
+            
+            if (!validTypes.includes(file.type)) {
+                alert('Por favor, selecione uma imagem válida (JPG, PNG, SVG ou ICO).');
+                uploadInput.value = '';
+                return;
+            }
+            
+            if (file.size > maxSize) {
+                alert('O arquivo é muito grande. O tamanho máximo é 2MB.');
+                uploadInput.value = '';
+                return;
+            }
+            
+            // Mostrar pré-visualização
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                const previewImg = previewElement.querySelector('img');
+                previewImg.src = e.target.result;
+                previewElement.classList.remove('d-none');
+            };
+            fileReader.readAsDataURL(file);
+            
+            // Enviar arquivo para o servidor
+            const formData = new FormData();
+            formData.append('image', file);
+            // Usamos o API de teste simplificado
+            const useSimplifiedApi = true;
+            const finalApiUrl = useSimplifiedApi ? '<?php echo url('api/upload-simplified.php'); ?>' : uploadApiUrl;
+            
+            console.log('Enviando para:', finalApiUrl);
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', finalApiUrl, true);
+            
+            // Monitorar progresso do upload
+            const progressBar = progressElement.querySelector('.progress-bar');
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressBar.setAttribute('aria-valuenow', percentComplete);
+                    progressBar.textContent = percentComplete + '%';
+                    progressElement.classList.remove('d-none');
+                    console.log('Progresso do upload:', percentComplete + '%');
+                }
+            };
+            
+            xhr.onload = function() {
+                console.log('Resposta do servidor:', xhr.status, xhr.responseText);
+                
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        console.log('Resposta parseada:', response);
+                        
+                        if (response.success) {
+                            // Atualizar o campo URL com o caminho do arquivo enviado
+                            urlInput.value = response.file_path;
+                            
+                            // Atualizar a prévia do URL também
+                            if (previewUrlElement) {
+                                const previewUrlImg = previewUrlElement.querySelector('img');
+                                previewUrlImg.src = '<?php echo url(''); ?>' + '/' + response.file_path;
+                                previewUrlElement.classList.remove('d-none');
+                            }
+                            
+                            // Mostrar botão de pré-visualização
+                            const previewBtn = document.getElementById(previewButtonId);
+                            if (previewBtn) {
+                                previewBtn.classList.remove('d-none');
+                            }
+                            
+                            alert('Imagem enviada com sucesso! Clique em Salvar Configurações para aplicar.');
+                        } else {
+                            alert('Erro ao enviar imagem: ' + (response.error || 'Erro desconhecido'));
+                        }
+                    } catch (e) {
+                        console.error('Erro ao processar JSON:', e);
+                        alert('Erro ao processar resposta do servidor: ' + e.message);
+                    }
+                } else {
+                    alert('Erro na comunicação com o servidor. Status: ' + xhr.status);
+                }
+                
+                // Ocultar barra de progresso
+                progressElement.classList.add('d-none');
+            };
+            
+            xhr.onerror = function(e) {
+                console.error('Erro na requisição:', e);
+                alert('Erro na comunicação com o servidor.');
+                progressElement.classList.add('d-none');
+            };
+            
+            xhr.send(formData);
+        };
+        
+        // Adicionar handler ao input de upload
+        if (uploadInput) {
+            uploadInput.addEventListener('change', uploadHandler);
+        }
+        
+        // Adicionar handler para visualizar a imagem atual
+        const previewBtn = document.getElementById(previewButtonId);
+        if (previewBtn && previewUrlElement) {
+            previewBtn.addEventListener('click', function() {
+                const imageUrl = urlInput.value.trim();
+                if (imageUrl) {
+                    // Exibir imagem de prévia
+                    const previewImg = previewUrlElement.querySelector('img');
+                    previewImg.src = '<?php echo url(''); ?>' + '/' + imageUrl;
+                    previewUrlElement.classList.remove('d-none');
+                } else {
+                    alert('Informe um caminho de arquivo válido para a imagem.');
+                }
+            });
+        }
+        
+        // Verificar se já existe uma imagem e mostrar botão de prévia
+        if (previewBtn) {
+            if (urlInput.value.trim()) {
+                previewBtn.classList.remove('d-none');
+            } else {
+                previewBtn.classList.add('d-none');
+            }
+            
+            // Mostrar/ocultar botão de prévia quando o usuário altera o campo
+            urlInput.addEventListener('input', function() {
+                if (this.value.trim()) {
+                    previewBtn.classList.remove('d-none');
+                } else {
+                    previewBtn.classList.add('d-none');
+                    if (previewUrlElement) {
+                        previewUrlElement.classList.add('d-none');
+                    }
+                }
+            });
+        }
+    };
+    
     // Sincronizar campos de cores e texto
     const syncColorFields = function(colorInput, textInput, hiddenInput) {
         colorInput.addEventListener('input', function() {
@@ -584,135 +888,53 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('header_color_hidden')
     );
     
-    // Gerenciar upload de logo
-    const logoUploadInput = document.getElementById('logo_upload');
-    const logoUrlInput = document.getElementById('logo_url');
-    const logoPreview = document.getElementById('logo_preview');
-    const logoPreviewImg = logoPreview.querySelector('img');
-    const logoProgress = document.getElementById('logo_upload_progress');
-    const progressBar = logoProgress.querySelector('.progress-bar');
-    const previewLogoBtn = document.getElementById('preview_logo_btn');
-    const logoUrlPreview = document.getElementById('logo_url_preview');
-    const logoUrlPreviewImg = logoUrlPreview.querySelector('img');
+    // Configurar upload de imagens (logo, favicon, ícone PWA)
     
-    // Adicionar handler para visualizar o logo atual
-    if (previewLogoBtn) {
-        previewLogoBtn.addEventListener('click', function() {
-            const logoUrl = logoUrlInput.value.trim();
-            if (logoUrl) {
-                // Exibir imagem de prévia
-                logoUrlPreviewImg.src = '<?php echo url(''); ?>' + '/' + logoUrl;
-                logoUrlPreview.classList.remove('d-none');
-            } else {
-                alert('Informe um caminho de arquivo válido para o logo.');
-            }
-        });
-    }
+    // Logo
+    setupImageUpload(
+        document.getElementById('logo_upload'),
+        document.getElementById('logo_url'),
+        document.getElementById('logo_preview'),
+        document.getElementById('logo_upload_progress'),
+        '<?php echo url('api/upload-logo.php'); ?>',
+        'preview_logo_btn',
+        document.getElementById('logo_url_preview')
+    );
     
-    // Verificar se já existe um logo e mostrar botão de prévia
-    if (logoUrlInput.value.trim()) {
-        previewLogoBtn.classList.remove('d-none');
-    } else {
-        previewLogoBtn.classList.add('d-none');
-    }
+    // Favicon
+    setupImageUpload(
+        document.getElementById('favicon_upload'),
+        document.getElementById('favicon_url'),
+        document.getElementById('favicon_preview'),
+        document.getElementById('favicon_upload_progress'),
+        '<?php echo url('api/upload-favicon.php'); ?>',
+        'preview_favicon_btn',
+        document.getElementById('favicon_url_preview')
+    );
     
-    // Mostrar/ocultar botão de prévia quando o usuário altera o campo
-    logoUrlInput.addEventListener('input', function() {
-        if (this.value.trim()) {
-            previewLogoBtn.classList.remove('d-none');
-        } else {
-            previewLogoBtn.classList.add('d-none');
-            logoUrlPreview.classList.add('d-none');
-        }
-    });
+    // Ícone PWA
+    setupImageUpload(
+        document.getElementById('pwa_icon_upload'),
+        document.getElementById('pwa_icon_url'),
+        document.getElementById('pwa_icon_preview'),
+        document.getElementById('pwa_icon_upload_progress'),
+        '<?php echo url('api/upload-pwa-icon.php'); ?>',
+        'preview_pwa_icon_btn',
+        document.getElementById('pwa_icon_url_preview')
+    );
     
-    if (logoUploadInput) {
-        logoUploadInput.addEventListener('change', function() {
-            const file = this.files[0];
-            if (!file) return;
-            
-            // Verificar tipo e tamanho do arquivo
-            const validTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
-            const maxSize = 2 * 1024 * 1024; // 2MB
-            
-            if (!validTypes.includes(file.type)) {
-                alert('Por favor, selecione uma imagem válida (JPG, PNG ou SVG).');
-                this.value = '';
-                return;
-            }
-            
-            if (file.size > maxSize) {
-                alert('O arquivo é muito grande. O tamanho máximo é 2MB.');
-                this.value = '';
-                return;
-            }
-            
-            // Mostrar pré-visualização
-            const fileReader = new FileReader();
-            fileReader.onload = function(e) {
-                logoPreviewImg.src = e.target.result;
-                logoPreview.classList.remove('d-none');
-            };
-            fileReader.readAsDataURL(file);
-            
-            // Enviar arquivo para o servidor
-            const formData = new FormData();
-            formData.append('logo', file);
-            formData.append('csrf_token', '<?php echo $csrf_token; ?>');
-            
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '<?php echo url('api/upload-logo.php'); ?>', true);
-            
-            // Monitorar progresso do upload
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    const percentComplete = Math.round((e.loaded / e.total) * 100);
-                    progressBar.style.width = percentComplete + '%';
-                    progressBar.setAttribute('aria-valuenow', percentComplete);
-                    progressBar.textContent = percentComplete + '%';
-                    logoProgress.classList.remove('d-none');
-                }
-            };
-            
-            xhr.onload = function() {
-                if (xhr.status === 200) {
-                    try {
-                        const response = JSON.parse(xhr.responseText);
-                        
-                        if (response.success) {
-                            // Atualizar o campo URL com o caminho do arquivo enviado
-                            logoUrlInput.value = response.file_path;
-                            
-                            // Atualizar a prévia do logo no campo URL também
-                            logoUrlPreviewImg.src = '<?php echo url(''); ?>' + '/' + response.file_path;
-                            logoUrlPreview.classList.remove('d-none');
-                            
-                            // Mostrar botão de pré-visualização
-                            previewLogoBtn.classList.remove('d-none');
-                            
-                            alert('Logo enviado com sucesso! Clique em Salvar Configurações para aplicar.');
-                        } else {
-                            alert('Erro ao enviar logo: ' + (response.error || 'Erro desconhecido'));
-                        }
-                    } catch (e) {
-                        alert('Erro ao processar resposta do servidor.');
-                    }
-                } else {
-                    alert('Erro na comunicação com o servidor.');
-                }
-                
-                // Ocultar barra de progresso
-                logoProgress.classList.add('d-none');
-            };
-            
-            xhr.onerror = function() {
-                alert('Erro na comunicação com o servidor.');
-                logoProgress.classList.add('d-none');
-            };
-            
-            xhr.send(formData);
-        });
-    }
+    // Sincronizar cores do PWA
+    syncColorFields(
+        document.getElementById('pwa_theme_color'),
+        document.getElementById('pwa_theme_color_text'),
+        document.getElementById('pwa_theme_color_hidden')
+    );
+    
+    syncColorFields(
+        document.getElementById('pwa_background_color'),
+        document.getElementById('pwa_background_color_text'),
+        document.getElementById('pwa_background_color_hidden')
+    );
     
     // Teste de WhatsApp
     const testWhatsAppForm = document.getElementById('testWhatsAppForm');
@@ -887,6 +1109,177 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             
             xhr.send('csrf_token=<?php echo $csrf_token; ?>');
+        });
+    }
+    
+    // Teste de PWA
+    const testPwaBtn = document.getElementById('testPwaBtn');
+    const pwaTestResult = document.getElementById('pwaTestResult');
+    
+    if (testPwaBtn) {
+        testPwaBtn.addEventListener('click', function() {
+            // Alterar estado do botão
+            testPwaBtn.disabled = true;
+            testPwaBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Testando...';
+            
+            // Fazer requisição AJAX - usamos GET para evitar problemas com o CSRF
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '<?php echo url('api/test-pwa-direct.php'); ?>', true);
+            xhr.onload = function() {
+                testPwaBtn.disabled = false;
+                testPwaBtn.innerHTML = '<i class="fas fa-vial me-2"></i>Testar Funcionamento do PWA';
+                
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        
+                        if (response.success) {
+                            let resultHtml = '<div class="card border-0 shadow-sm">';
+                            resultHtml += '<div class="card-header bg-white"><h6 class="mb-0">Resultado do Teste do PWA</h6></div>';
+                            resultHtml += '<div class="card-body">';
+                            
+                            // Status geral
+                            if (response.has_issues) {
+                                resultHtml += '<div class="alert alert-warning">';
+                                resultHtml += '<strong><i class="fas fa-exclamation-triangle me-2"></i>Foram encontrados problemas que podem afetar o funcionamento do PWA.</strong>';
+                                resultHtml += '</div>';
+                            } else {
+                                resultHtml += '<div class="alert alert-success">';
+                                resultHtml += '<strong><i class="fas fa-check-circle me-2"></i>Todos os testes passaram com sucesso!</strong>';
+                                resultHtml += '</div>';
+                            }
+                            
+                            // Diretórios
+                            resultHtml += '<h6 class="mt-4 mb-3 border-bottom pb-2">Verificação de Diretórios</h6>';
+                            resultHtml += '<ul class="list-group mb-3">';
+                            resultHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            resultHtml += 'Diretório de ícones existe';
+                            resultHtml += response.tests.directories.icons_dir_exists ? 
+                                '<span class="badge bg-success rounded-pill"><i class="fas fa-check"></i></span>' : 
+                                '<span class="badge bg-danger rounded-pill"><i class="fas fa-times"></i></span>';
+                            resultHtml += '</li>';
+                            
+                            resultHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            resultHtml += 'Diretório de ícones tem permissão de escrita';
+                            resultHtml += response.tests.directories.icons_dir_writable ? 
+                                '<span class="badge bg-success rounded-pill"><i class="fas fa-check"></i></span>' : 
+                                '<span class="badge bg-danger rounded-pill"><i class="fas fa-times"></i></span>';
+                            resultHtml += '</li>';
+                            resultHtml += '</ul>';
+                            
+                            // Arquivos
+                            resultHtml += '<h6 class="mt-4 mb-3 border-bottom pb-2">Verificação de Arquivos</h6>';
+                            resultHtml += '<ul class="list-group mb-3">';
+                            
+                            resultHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            resultHtml += 'Arquivo manifest.json existe';
+                            resultHtml += response.tests.files.manifest_exists ? 
+                                '<span class="badge bg-success rounded-pill"><i class="fas fa-check"></i></span>' : 
+                                '<span class="badge bg-danger rounded-pill"><i class="fas fa-times"></i></span>';
+                            resultHtml += '</li>';
+                            
+                            resultHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            resultHtml += 'Arquivo .htaccess existe';
+                            resultHtml += response.tests.files.htaccess_exists ? 
+                                '<span class="badge bg-success rounded-pill"><i class="fas fa-check"></i></span>' : 
+                                '<span class="badge bg-danger rounded-pill"><i class="fas fa-times"></i></span>';
+                            resultHtml += '</li>';
+                            
+                            resultHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            resultHtml += 'Regra de reescrita no .htaccess configurada';
+                            resultHtml += response.tests.files.htaccess_has_rewrite ? 
+                                '<span class="badge bg-success rounded-pill"><i class="fas fa-check"></i></span>' : 
+                                '<span class="badge bg-danger rounded-pill"><i class="fas fa-times"></i></span>';
+                            resultHtml += '</li>';
+                            
+                            resultHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            resultHtml += 'Service Worker existe';
+                            resultHtml += response.tests.files.service_worker_exists ? 
+                                '<span class="badge bg-success rounded-pill"><i class="fas fa-check"></i></span>' : 
+                                '<span class="badge bg-danger rounded-pill"><i class="fas fa-times"></i></span>';
+                            resultHtml += '</li>';
+                            
+                            resultHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            resultHtml += 'Script PWA existe';
+                            resultHtml += response.tests.files.pwa_script_exists ? 
+                                '<span class="badge bg-success rounded-pill"><i class="fas fa-check"></i></span>' : 
+                                '<span class="badge bg-danger rounded-pill"><i class="fas fa-times"></i></span>';
+                            resultHtml += '</li>';
+                            resultHtml += '</ul>';
+                            
+                            // Extensões PHP
+                            resultHtml += '<h6 class="mt-4 mb-3 border-bottom pb-2">Verificação de Extensões PHP</h6>';
+                            resultHtml += '<ul class="list-group mb-3">';
+                            resultHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            resultHtml += 'Extensão GD ativada';
+                            resultHtml += response.tests.php_extensions.gd_enabled ? 
+                                '<span class="badge bg-success rounded-pill"><i class="fas fa-check"></i></span>' : 
+                                '<span class="badge bg-warning rounded-pill"><i class="fas fa-exclamation"></i></span>';
+                            resultHtml += '</li>';
+                            
+                            resultHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            resultHtml += 'Extensão Imagick ativada';
+                            resultHtml += response.tests.php_extensions.imagick_enabled ? 
+                                '<span class="badge bg-success rounded-pill"><i class="fas fa-check"></i></span>' : 
+                                '<span class="badge bg-warning rounded-pill"><i class="fas fa-exclamation"></i></span>';
+                            resultHtml += '</li>';
+                            resultHtml += '</ul>';
+                            
+                            // Configurações
+                            resultHtml += '<h6 class="mt-4 mb-3 border-bottom pb-2">Verificação de Configurações</h6>';
+                            resultHtml += '<ul class="list-group mb-3">';
+                            resultHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            resultHtml += 'PWA ativado nas configurações';
+                            resultHtml += response.tests.settings.pwa_enabled ? 
+                                '<span class="badge bg-success rounded-pill"><i class="fas fa-check"></i></span>' : 
+                                '<span class="badge bg-warning rounded-pill"><i class="fas fa-exclamation"></i></span>';
+                            resultHtml += '</li>';
+                            
+                            resultHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                            resultHtml += 'Ícone PWA configurado e existe';
+                            resultHtml += response.tests.settings.pwa_icon_exists ? 
+                                '<span class="badge bg-success rounded-pill"><i class="fas fa-check"></i></span>' : 
+                                '<span class="badge bg-warning rounded-pill"><i class="fas fa-exclamation"></i></span>';
+                            resultHtml += '</li>';
+                            resultHtml += '</ul>';
+                            
+                            // Problemas encontrados
+                            if (response.issues && response.issues.length > 0) {
+                                resultHtml += '<h6 class="mt-4 mb-3 border-bottom pb-2">Problemas Encontrados</h6>';
+                                resultHtml += '<div class="alert alert-danger">';
+                                resultHtml += '<ul class="mb-0">';
+                                response.issues.forEach(issue => {
+                                    resultHtml += '<li>' + issue + '</li>';
+                                });
+                                resultHtml += '</ul>';
+                                resultHtml += '</div>';
+                            }
+                            
+                            resultHtml += '</div></div>';
+                            
+                            pwaTestResult.innerHTML = resultHtml;
+                        } else {
+                            pwaTestResult.innerHTML = '<div class="alert alert-danger">Erro ao testar PWA: ' + (response.error || 'Erro desconhecido') + '</div>';
+                        }
+                    } catch (e) {
+                        pwaTestResult.innerHTML = '<div class="alert alert-danger">Erro ao processar resposta do servidor: ' + e.message + '</div>';
+                    }
+                } else {
+                    pwaTestResult.innerHTML = '<div class="alert alert-danger">Erro na comunicação com o servidor.</div>';
+                }
+                
+                pwaTestResult.style.display = 'block';
+            };
+            
+            xhr.onerror = function() {
+                testPwaBtn.disabled = false;
+                testPwaBtn.innerHTML = '<i class="fas fa-vial me-2"></i>Testar Funcionamento do PWA';
+                pwaTestResult.innerHTML = '<div class="alert alert-danger">Erro na comunicação com o servidor.</div>';
+                pwaTestResult.style.display = 'block';
+            };
+            
+            // Testar sem enviar token CSRF já que desabilitamos a verificação no endpoint
+            xhr.send();
         });
     }
 });

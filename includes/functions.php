@@ -2423,4 +2423,154 @@ function registerSentMessage($lead_id, $user_id, $message, $template_id = null, 
         
         return false;
     }
+
+    // Adicione estas funções no arquivo functions.php
+
+/**
+ * Função para enviar mensagem via WhatsApp
+ */
+function sendWhatsAppMessage($phone, $message, $media = null, $token = null) {
+    try {
+        // Log para debug
+        error_log("Iniciando envio de mensagem WhatsApp");
+        error_log("Telefone: " . $phone);
+        error_log("Mensagem: " . $message);
+        error_log("Token: " . ($token ? 'Presente' : 'Ausente'));
+
+        // Validar parâmetros
+        if (empty($phone) || empty($message)) {
+            throw new Exception('Telefone e mensagem são obrigatórios');
+        }
+
+        // Formatar número de telefone (remover caracteres não numéricos)
+        $phone = preg_replace('/[^0-9]/', '', $phone);
+
+        // Se não foi fornecido token, tentar obter o token global
+        if (empty($token)) {
+            $token = getSetting('whatsapp_api_token');
+        }
+
+        // Verificar se existe token configurado
+        if (empty($token)) {
+            return [
+                'success' => false,
+                'error' => 'Token do WhatsApp não configurado'
+            ];
+        }
+
+        // URL da API (deve estar definida em config.php)
+        $api_url = WHATSAPP_API_URL;
+
+        // Preparar dados para envio
+        $data = [
+            'phone' => $phone,
+            'message' => $message
+        ];
+
+        // Adicionar mídia se existir
+        if ($media && is_array($media)) {
+            $data['media'] = $media;
+        }
+
+        // Configurar cURL
+        $ch = curl_init($api_url);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $token
+        ]);
+
+        // Executar requisição
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        // Log da resposta
+        error_log("Resposta da API WhatsApp: " . $response);
+        error_log("HTTP Code: " . $http_code);
+
+        // Verificar erros do cURL
+        if (curl_errno($ch)) {
+            throw new Exception('Erro cURL: ' . curl_error($ch));
+        }
+
+        curl_close($ch);
+
+        // Decodificar resposta
+        $result = json_decode($response, true);
+
+        // Verificar se a resposta é válida
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('Resposta inválida da API');
+        }
+
+        return [
+            'success' => $http_code === 200 && isset($result['success']) && $result['success'],
+            'data' => $result
+        ];
+
+    } catch (Exception $e) {
+        error_log("Erro ao enviar mensagem WhatsApp: " . $e->getMessage());
+        return [
+            'success' => false,
+            'error' => $e->getMessage()
+        ];
+    }
 }
+
+/**
+ * Função para registrar mensagem enviada
+ */
+function registerSentMessage($lead_id, $user_id, $message, $template_id = null, $media_url = null, $media_type = null, $status = 'sent', $external_id = null) {
+    try {
+        $conn = getConnection();
+
+        // Verificar se a tabela existe
+        $conn->exec("CREATE TABLE IF NOT EXISTS lead_messages (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            lead_id INT NOT NULL,
+            user_id INT NOT NULL,
+            template_id INT NULL,
+            message TEXT NOT NULL,
+            media_url VARCHAR(255) NULL,
+            media_type VARCHAR(50) NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'sent',
+            external_id VARCHAR(100) NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            KEY lead_id (lead_id),
+            KEY user_id (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        // Preparar e executar a inserção
+        $stmt = $conn->prepare("
+            INSERT INTO lead_messages 
+            (lead_id, user_id, template_id, message, media_url, media_type, status, external_id) 
+            VALUES 
+            (:lead_id, :user_id, :template_id, :message, :media_url, :media_type, :status, :external_id)
+        ");
+
+        $result = $stmt->execute([
+            'lead_id' => $lead_id,
+            'user_id' => $user_id,
+            'template_id' => $template_id,
+            'message' => $message,
+            'media_url' => $media_url,
+            'media_type' => $media_type,
+            'status' => $status,
+            'external_id' => $external_id
+        ]);
+
+        if ($result) {
+            return $conn->lastInsertId();
+        }
+
+        return false;
+
+    } catch (PDOException $e) {
+        error_log("Erro ao registrar mensagem no banco: " . $e->getMessage());
+        throw new Exception("Erro ao registrar mensagem no banco de dados");
+    }
+}
+}
+

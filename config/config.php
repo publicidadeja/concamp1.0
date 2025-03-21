@@ -9,7 +9,7 @@ define('DB_PASS', '');
 define('APP_NAME', 'ConCamp');
 define('APP_URL', '/concamp');
 define('WHATSAPP_API_URL', 'https://api2.publicidadeja.com.br/api/messages/send');
-define('WHATSAPP_API_TOKEN', '21212121');
+define('WHATSAPP_API_TOKEN', '23071997');
 
 // Não altere as configurações abaixo
 define('PATH_ROOT', __DIR__ . '/..');

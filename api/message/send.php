@@ -154,6 +154,139 @@ try {
     } else {
         error_log('Nenhuma mídia detectada nos arquivos enviados');
     }
+
+    /**
+ * Função para processar template de mensagem
+ */
+function processMessageTemplate($message, $data) {
+    foreach ($data as $key => $value) {
+        $message = str_replace('{' . $key . '}', $value, $message);
+    }
+    return $message;
+}
+
+/**
+ * Função para enviar mensagem via WhatsApp
+ */
+function sendWhatsAppMessage($phone, $message, $media = null, $token) {
+    $url = WHATSAPP_API_URL;
+    
+    // Formatar número de telefone (remover caracteres não numéricos)
+    $phone = preg_replace('/[^0-9]/', '', $phone);
+    
+    // Preparar dados para envio
+    $data = [
+        'phone' => $phone,
+        'message' => $message,
+        'token' => $token
+    ];
+    
+    if ($media) {
+        $data['media'] = $media;
+    }
+    
+    // Configurar requisição cURL
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $token
+    ]);
+    
+    // Executar requisição
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    // Log da resposta
+    error_log("Resposta da API WhatsApp: " . $response);
+    error_log("HTTP Code: " . $http_code);
+    
+    // Decodificar resposta
+    $result = json_decode($response, true);
+    
+    return [
+        'success' => $http_code === 200 && isset($result['success']) && $result['success'],
+        'data' => $result
+    ];
+}
+
+/**
+ * Função para enviar WhatsApp com fallback
+ */
+function sendWhatsAppWithFallback($phone, $message, $media, $token) {
+    // Primeiro tenta enviar a mídia
+    if ($media) {
+        $media_result = sendWhatsAppMessage($phone, '', $media, $token);
+        error_log("Resultado do envio da mídia: " . json_encode($media_result));
+    }
+    
+    // Depois envia o texto
+    if (!empty($message)) {
+        $text_result = sendWhatsAppMessage($phone, $message, null, $token);
+        error_log("Resultado do envio do texto: " . json_encode($text_result));
+        
+        return $text_result;
+    }
+    
+    return $media_result ?? ['success' => false, 'error' => 'Nenhum conteúdo para enviar'];
+}
+
+/**
+ * Função para registrar mensagem enviada
+ */
+function registerSentMessage($lead_id, $user_id, $message, $template_id = null, $media_url = null, $media_type = null, $status = 'sent', $external_id = null) {
+    $conn = getConnection();
+    
+    try {
+        // Verificar se a tabela existe
+        $conn->query("CREATE TABLE IF NOT EXISTS `lead_messages` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `lead_id` int(11) NOT NULL,
+            `user_id` int(11) NOT NULL,
+            `template_id` int(11) DEFAULT NULL,
+            `message` text NOT NULL,
+            `media_url` varchar(255) DEFAULT NULL,
+            `media_type` varchar(50) DEFAULT NULL,
+            `status` varchar(20) NOT NULL DEFAULT 'sent',
+            `external_id` varchar(100) DEFAULT NULL,
+            `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `lead_id` (`lead_id`),
+            KEY `user_id` (`user_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        
+        // Preparar e executar a inserção
+        $stmt = $conn->prepare("
+            INSERT INTO lead_messages 
+            (lead_id, user_id, template_id, message, media_url, media_type, status, external_id, created_at) 
+            VALUES 
+            (:lead_id, :user_id, :template_id, :message, :media_url, :media_type, :status, :external_id, NOW())
+        ");
+        
+        $result = $stmt->execute([
+            'lead_id' => $lead_id,
+            'user_id' => $user_id,
+            'template_id' => $template_id,
+            'message' => $message,
+            'media_url' => $media_url,
+            'media_type' => $media_type,
+            'status' => $status,
+            'external_id' => $external_id
+        ]);
+        
+        if ($result) {
+            return $conn->lastInsertId();
+        }
+        
+        return false;
+    } catch (PDOException $e) {
+        error_log("Erro ao registrar mensagem no banco: " . $e->getMessage());
+        return false;
+    }
+}
     
     // Função para obter mensagem de erro de upload
     function getUploadErrorMessage($error_code) {

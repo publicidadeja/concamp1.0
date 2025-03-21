@@ -166,72 +166,27 @@ function processMessageTemplate($message, $data) {
 }
 
 /**
- * Função para enviar mensagem via WhatsApp
+ * Função para enviar mensagem via WhatsApp - Usa a função global do sistema
+ * com suporte à nova API
  */
 function sendWhatsAppMessage($phone, $message, $media = null, $token) {
-    $url = WHATSAPP_API_URL;
+    // Reutiliza a função global com a implementação atualizada
+    // Esta função é apenas um wrapper para compatibilidade com
+    // código existente neste arquivo
     
-    // Formatar número de telefone (remover caracteres não numéricos)
-    $phone = preg_replace('/[^0-9]/', '', $phone);
-    
-    // Preparar dados para envio
-    $data = [
-        'phone' => $phone,
-        'message' => $message,
-        'token' => $token
-    ];
-    
-    if ($media) {
-        $data['media'] = $media;
-    }
-    
-    // Configurar requisição cURL
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/json',
-        'Authorization: Bearer ' . $token
-    ]);
-    
-    // Executar requisição
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    // Log da resposta
-    error_log("Resposta da API WhatsApp: " . $response);
-    error_log("HTTP Code: " . $http_code);
-    
-    // Decodificar resposta
-    $result = json_decode($response, true);
-    
-    return [
-        'success' => $http_code === 200 && isset($result['success']) && $result['success'],
-        'data' => $result
-    ];
+    // Chamar a função global que agora suporta a nova API
+    return \sendWhatsAppMessage($phone, $message, $media, $token);
 }
 
 /**
- * Função para enviar WhatsApp com fallback
+ * Função para enviar WhatsApp com fallback - Não mais necessária com a nova API
+ * que suporta envio de texto e mídia juntos, mas mantida para compatibilidade
  */
 function sendWhatsAppWithFallback($phone, $message, $media, $token) {
-    // Primeiro tenta enviar a mídia
-    if ($media) {
-        $media_result = sendWhatsAppMessage($phone, '', $media, $token);
-        error_log("Resultado do envio da mídia: " . json_encode($media_result));
-    }
+    error_log("Usando sendWhatsAppMessage para envio unificado de mídia e texto");
     
-    // Depois envia o texto
-    if (!empty($message)) {
-        $text_result = sendWhatsAppMessage($phone, $message, null, $token);
-        error_log("Resultado do envio do texto: " . json_encode($text_result));
-        
-        return $text_result;
-    }
-    
-    return $media_result ?? ['success' => false, 'error' => 'Nenhum conteúdo para enviar'];
+    // Com a nova API, podemos enviar mídia e texto em uma única chamada
+    return sendWhatsAppMessage($phone, $message, $media, $token);
 }
 
 /**
@@ -258,15 +213,22 @@ function registerSentMessage($lead_id, $user_id, $message, $template_id = null, 
             KEY `user_id` (`user_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         
-        // Preparar e executar a inserção
-        $stmt = $conn->prepare("
-            INSERT INTO lead_messages 
-            (lead_id, user_id, template_id, message, media_url, media_type, status, external_id, created_at) 
-            VALUES 
-            (:lead_id, :user_id, :template_id, :message, :media_url, :media_type, :status, :external_id, NOW())
-        ");
+        // Log dos parâmetros recebidos
+        error_log("Tentando registrar mensagem com parâmetros:");
+        error_log("Lead ID: " . $lead_id);
+        error_log("User ID: " . $user_id);
+        error_log("Message: " . $message);
+        error_log("Status: " . $status);
         
-        $result = $stmt->execute([
+        // Preparar e executar a inserção
+        $sql = "INSERT INTO lead_messages 
+                (lead_id, user_id, template_id, message, media_url, media_type, status, external_id, created_at) 
+                VALUES 
+                (:lead_id, :user_id, :template_id, :message, :media_url, :media_type, :status, :external_id, NOW())";
+        
+        $stmt = $conn->prepare($sql);
+        
+        $params = [
             'lead_id' => $lead_id,
             'user_id' => $user_id,
             'template_id' => $template_id,
@@ -275,15 +237,28 @@ function registerSentMessage($lead_id, $user_id, $message, $template_id = null, 
             'media_type' => $media_type,
             'status' => $status,
             'external_id' => $external_id
-        ]);
+        ];
+        
+        // Log da query e parâmetros
+        error_log("SQL: " . $sql);
+        error_log("Parâmetros: " . json_encode($params));
+        
+        $result = $stmt->execute($params);
         
         if ($result) {
-            return $conn->lastInsertId();
+            $message_id = $conn->lastInsertId();
+            error_log("Mensagem registrada com sucesso. ID: " . $message_id);
+            return $message_id;
         }
         
+        error_log("Falha ao registrar mensagem no banco de dados");
         return false;
+        
     } catch (PDOException $e) {
-        error_log("Erro ao registrar mensagem no banco: " . $e->getMessage());
+        error_log("Erro PDO ao registrar mensagem: " . $e->getMessage());
+        return false;
+    } catch (Exception $e) {
+        error_log("Erro ao registrar mensagem: " . $e->getMessage());
         return false;
     }
 }

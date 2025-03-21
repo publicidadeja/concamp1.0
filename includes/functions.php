@@ -993,84 +993,156 @@ function assignLeadToSeller($lead_id, $seller_id, $user_id = null) {
 
 /**
  * Enviar mensagem via WhatsApp
+ * 
+ * @param string $number Número do telefone
+ * @param string $message Mensagem a ser enviada
+ * @param string|array|null $media Caminho do arquivo ou array com dados da mídia (opcional)
+ * @param string|null $custom_token Token personalizado (opcional)
+ * @return array Status e dados da mensagem
  */
-function sendWhatsAppMessage($number, $message, $media_url = null, $custom_token = null) {
-    // Obter token do WhatsApp
+function sendWhatsAppMessage($number, $message, $media = null, $custom_token = null) {
+    // Verificar token (usar token personalizado ou global)
     $token = $custom_token ? $custom_token : getSetting('whatsapp_api_token', '');
     
     if (empty($token)) {
+        error_log('Erro: Token da API WhatsApp não configurado');
         return [
             'success' => false,
-            'error' => 'Token da API do WhatsApp não configurado'
+            'error' => 'Token da API WhatsApp não configurado'
         ];
     }
     
     // Formatar número de telefone
     $number = preg_replace('/[^0-9]/', '', $number);
     
-    // Verificar se o número tem o formato correto
+    // Verificar se o número tem pelo menos 10 dígitos
     if (strlen($number) < 10) {
+        error_log('Erro: Número de telefone inválido - ' . $number);
         return [
             'success' => false,
             'error' => 'Número de telefone inválido'
         ];
     }
     
-    // Adicionar prefixo internacional se necessário
+    // Adicionar o prefixo internacional se não houver
     if (substr($number, 0, 2) !== '55') {
         $number = '55' . $number;
     }
     
     // URL da API
-    $url = 'https://wheapi.com/api/send';
+    $api_url = WHATSAPP_API_URL;
     
-    // Dados para envio
-    $data = [
-        'token' => $token,
-        'phone' => $number,
-        'message' => $message
-    ];
+    // Log da tentativa com o início do token (para depuração)
+    error_log('Enviando WhatsApp para ' . $number . ' com token ' . substr($token, 0, 5) . '...');
     
-    // Se tiver mídia, adicionar URL
-    if (!empty($media_url)) {
-        $data['media_url'] = $media_url;
+    // Processar tipo de requisição com base na existência de mídia
+    if ($media) {
+        error_log('Enviando mensagem com mídia via WhatsApp API');
+        
+        // Usar multipart/form-data para enviar arquivos
+        $curl = curl_init();
+        
+        // Configurar para envio de mídia
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $api_url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $token
+            ]
+        ]);
+        
+        // Preparar o campo de mídia
+        if (is_array($media)) {
+            // Se for array, usa os dados fornecidos
+            $media_file = $media['path'];
+            error_log('Usando dados de mídia do array: ' . $media_file);
+        } else {
+            // Se for string, usa como caminho do arquivo
+            $media_file = $media;
+            error_log('Usando caminho de mídia: ' . $media_file);
+        }
+        
+        // Verificar se o arquivo existe
+        if (!file_exists($media_file)) {
+            error_log('Erro: Arquivo de mídia não encontrado - ' . $media_file);
+            return [
+                'success' => false,
+                'error' => 'Arquivo de mídia não encontrado'
+            ];
+        }
+        
+        // Preparar formulário multipart para Upload de Arquivos
+        $postFields = [
+            'number' => $number,
+            'medias' => new CURLFile($media_file)
+        ];
+        
+        // Se também houver mensagem de texto, adicionar ao request
+        if (!empty($message)) {
+            $postFields['message'] = $message;
+        }
+        
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $postFields);
+        
+        // Log para depuração (sem mostrar conteúdo binário)
+        error_log('Enviando form-data com mídia para ' . $number);
+    } else {
+        // Apenas texto - usar JSON
+        error_log('Enviando mensagem de texto simples via WhatsApp API');
+        
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $api_url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $token,
+                'Content-Type: application/json'
+            ],
+            CURLOPT_POSTFIELDS => json_encode([
+                'number' => $number,
+                'body' => $message
+            ])
+        ]);
+        
+        // Log para depuração
+        error_log('Payload JSON: ' . json_encode(['number' => $number, 'body' => $message]));
     }
     
-    // Iniciar curl
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-    curl_setopt($ch, CURLOPT_POST, true);
+    // Executar requisição
+    $response = curl_exec($curl);
+    $status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
     
-    // Executar curl
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    // Verificar se houve erro
-    if ($http_code != 200) {
+    // Verificar erros de cURL
+    if ($response === false) {
+        $curl_error = curl_error($curl);
+        error_log('Erro cURL: ' . $curl_error);
+        curl_close($curl);
         return [
             'success' => false,
-            'error' => 'Erro ao enviar mensagem: HTTP ' . $http_code,
-            'response' => $response
+            'error' => 'Erro na comunicação com a API: ' . $curl_error
         ];
     }
+    
+    curl_close($curl);
+    
+    // Log do resultado
+    error_log('Resposta da API WhatsApp (HTTP ' . $status_code . '): ' . $response);
     
     // Decodificar resposta
-    $result = json_decode($response, true);
+    $response_data = json_decode($response, true) ?: [];
     
-    // Verificar se a API retornou sucesso
-    if (isset($result['success']) && $result['success']) {
-        return [
-            'success' => true,
-            'message_id' => $result['id'] ?? null
-        ];
-    }
+    // Verificar sucesso
+    $success = $status_code >= 200 && $status_code < 300;
     
     return [
-        'success' => false,
-        'error' => $result['error'] ?? 'Erro desconhecido',
-        'response' => $result
+        'success' => $success,
+        'data' => $response_data,
+        'lead_id' => null,
+        'message_id' => $response_data['id'] ?? null
     ];
 }
 

@@ -808,8 +808,8 @@ function sendWhatsAppMessage(leadId, message, media = null) {
     
     console.log('Enviando mensagem para lead #' + leadId);
     
-    // Enviar requisição AJAX
-    fetch('index.php?route=api/message/send', {
+    // Enviar requisição AJAX usando endpoint de depuração temporário
+    fetch('index.php?route=api/message/send-debug', {
         method: 'POST',
         body: formData
     })

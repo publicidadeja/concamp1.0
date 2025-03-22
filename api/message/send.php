@@ -165,16 +165,7 @@ try {
         error_log('Nenhuma mídia detectada nos arquivos enviados');
     }
 
-    /**
- * Função para processar template de mensagem localmente (usada apenas neste arquivo)
- * @internal Não usar diretamente em outros arquivos - renomeada para evitar conflito
- */
-function processMessageTemplateLocal($message, $data) {
-    foreach ($data as $key => $value) {
-        $message = str_replace('{' . $key . '}', $value, $message);
-    }
-    return $message;
-}
+    /* Esta função foi movida para o início do fluxo - linha ~68 */
 
 /**
  * Função para enviar mensagem via WhatsApp - Usa a função global do sistema

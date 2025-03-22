@@ -1,7 +1,9 @@
 <?php
-// Suprimir todos os avisos e erros
-error_reporting(0);
-ini_set('display_errors', 0);
+// Habilitar logs para depuração
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/../../logs/whatsapp-error.log');
 
 // Iniciar sessão e incluir arquivos necessários
 @session_start();
@@ -170,12 +172,27 @@ function processMessageTemplate($message, $data) {
  * com suporte à nova API
  */
 function sendWhatsAppMessage($phone, $message, $media = null, $token) {
-    // Reutiliza a função global com a implementação atualizada
-    // Esta função é apenas um wrapper para compatibilidade com
-    // código existente neste arquivo
+    error_log("Wrapper de sendWhatsAppMessage em api/message/send.php chamada com token: " . substr($token, 0, 5) . "...");
+    error_log("Parâmetros: phone=" . $phone . ", message=" . substr($message, 0, 30) . "..., media=" . ($media ? "presente" : "null"));
     
-    // Chamar a função global que agora suporta a nova API
-    return \sendWhatsAppMessage($phone, $message, $media, $token);
+    try {
+        // Reutiliza a função global com a implementação atualizada
+        // Esta função é apenas um wrapper para compatibilidade com
+        // código existente neste arquivo
+        
+        // Chamar a função global que agora suporta a nova API
+        // O prefixo "\" força o uso da função do namespace global e não desta local
+        $result = \sendWhatsAppMessage($phone, $message, $media, $token);
+        error_log("Resultado da chamada global de sendWhatsAppMessage: " . json_encode($result));
+        return $result;
+    } catch (Exception $e) {
+        error_log("ERRO no wrapper sendWhatsAppMessage: " . $e->getMessage());
+        return [
+            'success' => false,
+            'error' => 'Erro ao enviar mensagem: ' . $e->getMessage(),
+            'data' => null
+        ];
+    }
 }
 
 /**

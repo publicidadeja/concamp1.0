@@ -424,16 +424,40 @@ function registerSentMessage($lead_id, $user_id, $message, $template_id = null, 
         'whatsapp_sent' => !empty($whatsapp_token)
     ];
     
+    // Cabeçalhos para evitar problemas de cache
+    header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+    header("Cache-Control: post-check=0, pre-check=0", false);
+    header("Pragma: no-cache");
+    
+    // Garantir que o tipo de conteúdo é application/json
+    header('Content-Type: application/json; charset=utf-8');
+    
+    // Limpar buffer de saída
+    if (ob_get_length()) ob_clean();
+    
     // Enviar resposta JSON
     echo json_encode($response);
+    exit; // Garantir que nada mais seja enviado
     
 } catch (Exception $e) {
     // Log de erro
     error_log('Erro na API message/send.php: ' . $e->getMessage());
+    
+    // Cabeçalhos para evitar problemas de cache
+    header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+    header("Cache-Control: post-check=0, pre-check=0", false);
+    header("Pragma: no-cache");
+    
+    // Garantir que o tipo de conteúdo é application/json
+    header('Content-Type: application/json; charset=utf-8');
+    
+    // Limpar buffer de saída
+    if (ob_get_length()) ob_clean();
     
     // Resposta de erro para o cliente
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()
     ]);
+    exit; // Garantir que nada mais seja enviado
 }

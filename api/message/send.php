@@ -1,7 +1,7 @@
 <?php
-// Habilitar logs para depuração
+// Habilitar logs para depuração mas sem exibir erros na resposta (JSON puro)
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0); // Desativar exibição de erros para garantir JSON limpo
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../../logs/whatsapp-error.log');
 
@@ -64,7 +64,15 @@ try {
         'nome_consultor' => $current_user['name']
     ];
     
-    // Substituir variáveis no template usando a função local renomeada
+    // Função local para processar template
+    function processMessageTemplateLocal($msg, $data) {
+        foreach ($data as $key => $value) {
+            $msg = str_replace('{' . $key . '}', $value, $msg);
+        }
+        return $msg;
+    }
+    
+    // Substituir variáveis no template usando a função local definida acima
     $message = processMessageTemplateLocal($message, $message_data);
     
     // Verificar permissão (apenas admin ou vendedor atribuído pode enviar mensagem)

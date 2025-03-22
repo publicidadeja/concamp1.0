@@ -64,8 +64,8 @@ try {
         'nome_consultor' => $current_user['name']
     ];
     
-    // Substituir variáveis no template
-    $message = processMessageTemplate($message, $message_data);
+    // Substituir variáveis no template usando a função local renomeada
+    $message = processMessageTemplateLocal($message, $message_data);
     
     // Verificar permissão (apenas admin ou vendedor atribuído pode enviar mensagem)
     if (!$is_admin && $lead['seller_id'] != $user_id) {
@@ -158,9 +158,10 @@ try {
     }
 
     /**
- * Função para processar template de mensagem
+ * Função para processar template de mensagem localmente (usada apenas neste arquivo)
+ * @internal Não usar diretamente em outros arquivos - renomeada para evitar conflito
  */
-function processMessageTemplate($message, $data) {
+function processMessageTemplateLocal($message, $data) {
     foreach ($data as $key => $value) {
         $message = str_replace('{' . $key . '}', $value, $message);
     }

@@ -5,17 +5,17 @@ const APP_PREFIX = 'concamp'; // Prefixo para identificar os caches da aplicaç�
 // URLs para serem cacheadas durante a instalação
 const urlsToCache = [
   // Arquivos CSS
-  '/assets/css/style.css',
-  '/assets/css/dashboard.css',
-  '/assets/css/hardcoded-theme.css',
-  '/assets/css/theme.php',
+  '/concamp/assets/css/style.css',
+  '/concamp/assets/css/dashboard.css',
+  '/concamp/assets/css/hardcoded-theme.css',
+  '/concamp/assets/css/theme.php',
   
   // Arquivos JavaScript
-  '/assets/js/app.js',
-  '/assets/js/dashboard.js',
-  '/assets/js/notifications.js',
-  '/assets/js/simulador.js',
-  '/assets/js/pwa.js',
+  '/concamp/assets/js/app.js',
+  '/concamp/assets/js/dashboard.js',
+  '/concamp/assets/js/notifications.js',
+  '/concamp/assets/js/simulador.js',
+  '/concamp/assets/js/pwa.js',
   
   // Bibliotecas externas
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css',
@@ -24,23 +24,23 @@ const urlsToCache = [
   'https://unpkg.com/imask',
   
   // Ícones e imagens importantes
-  '/assets/img/icons/favicon.png',
-  '/assets/img/icons/icon-72x72.png',
-  '/assets/img/icons/icon-96x96.png',
-  '/assets/img/icons/icon-128x128.png',
-  '/assets/img/icons/icon-144x144.png',
-  '/assets/img/icons/icon-152x152.png',
-  '/assets/img/icons/icon-192x192.png',
-  '/assets/img/icons/icon-384x384.png',
-  '/assets/img/icons/icon-512x512.png',
+  '/concamp/assets/img/icons/favicon.png',
+  '/concamp/assets/img/icons/icon-72x72.png',
+  '/concamp/assets/img/icons/icon-96x96.png',
+  '/concamp/assets/img/icons/icon-128x128.png',
+  '/concamp/assets/img/icons/icon-144x144.png',
+  '/concamp/assets/img/icons/icon-152x152.png',
+  '/concamp/assets/img/icons/icon-192x192.png',
+  '/concamp/assets/img/icons/icon-384x384.png',
+  '/concamp/assets/img/icons/icon-512x512.png',
   
   // Páginas principais
-  '/index.php',
-  '/index.php?route=dashboard',
-  '/index.php?route=leads',
-  '/index.php?route=login',
-  '/manifest.json',
-  '/offline.php'
+  '/concamp/index.php',
+  '/concamp/index.php?route=dashboard',
+  '/concamp/index.php?route=leads',
+  '/concamp/index.php?route=login',
+  '/concamp/manifest.json',
+  '/concamp/offline.php'
 ];
 
 // Instalação do Service Worker
@@ -142,7 +142,7 @@ self.addEventListener('fetch', event => {
             
             // 3. Se a rede falhar, mostrar página offline para solicitações HTML
             if (event.request.headers.get('Accept')?.includes('text/html')) {
-              return caches.match('/offline.php');
+              return caches.match('/concamp/offline.php');
             }
             
             // Para outros recursos (CSS, JS), apenas retornar o erro

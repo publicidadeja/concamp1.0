@@ -46,8 +46,10 @@ if ('serviceWorker' in navigator) {
         // Definir classes do corpo
         setUserBodyClass();
         
-        // Registrar Service Worker
-        navigator.serviceWorker.register('/service-worker.js')
+        // Registrar Service Worker com escopo explícito
+        navigator.serviceWorker.register('/concamp/service-worker.js', {
+            scope: '/concamp/'
+        })
             .then(registration => {
                 console.log('Service Worker registrado com sucesso:', registration);
             })

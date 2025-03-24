@@ -86,7 +86,18 @@ if ($whatsapp_token) {
             'nome_consultor' => $seller['name'] // Usar o nome do vendedor
         ];
 
+        // Log para depuração
+        error_log("Mensagem original: " . $template['content']);
+        
+        // Primeiro tentar o formato padrão com processMessageTemplate (espera {{variavel}})
         $message = processMessageTemplate($template['content'], $messageData);
+        
+        // Se ainda existirem placeholders no formato {variavel}, fazer substituição direta
+        foreach ($messageData as $key => $value) {
+            $message = str_replace('{' . $key . '}', $value, $message);
+        }
+        
+        error_log("Mensagem processada: " . $message);
         $result = sendWhatsAppMessage($phone, $message, null, $whatsapp_token); // Passar o token
 
         if (isset($result['success']) && $result['success']) {

@@ -21,14 +21,15 @@ $route = $_GET['route'] ?? 'home';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?></title>
-    
+
     <!-- Meta tags para PWA -->
     <meta name="description" content="Sistema para gerenciamento de contratos premiados de carros e motos">
     <meta name="theme-color" content="#0d6efd">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ConCamp">
-    
+
     <!-- Favicon -->
     <?php if (getSetting('favicon_url')): ?>
     <link rel="icon" type="image/png" href="<?php echo url(getSetting('favicon_url')); ?>">
@@ -37,42 +38,42 @@ $route = $_GET['route'] ?? 'home';
     <link rel="icon" type="image/png" href="<?php echo url('assets/img/icons/favicon.png'); ?>">
     <link rel="shortcut icon" href="<?php echo url('assets/img/icons/favicon.png'); ?>">
     <?php endif; ?>
-    
+
     <!-- Links para o PWA -->
     <link rel="manifest" href="<?php echo url('manifest.json'); ?>">
     <link rel="apple-touch-icon" href="<?php echo url(getSetting('pwa_icon_url') ?: 'assets/img/icons/icon-192x192.png'); ?>">
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    
+
     <!-- Custom CSS -->
     <link href="<?php echo url('assets/css/style.css?v=' . time()); ?>" rel="stylesheet">
-    
+
     <?php if ($is_logged_in): ?>
     <link href="<?php echo url('assets/css/dashboard.css'); ?>" rel="stylesheet">
     <?php endif; ?>
-    
+
     <!-- Tema com cores fixas -->
     <link href="<?php echo url('assets/css/hardcoded-theme.css?v=' . time()); ?>" rel="stylesheet" id="hardcoded-theme-css">
-    
+
     <!-- Script para garantir que o tema seja sempre atualizado -->
     <script>
     (function() {
         // Verificar se o tema está desatualizado
         const storedThemeVersion = localStorage.getItem('theme_version');
         const currentThemeVersion = '<?php echo $theme_timestamp; ?>';
-        
+
         if (storedThemeVersion !== currentThemeVersion) {
             // Armazenar nova versão
             localStorage.setItem('theme_version', currentThemeVersion);
-            
+
             // Se o usuário recarregou a página nos últimos 5 segundos, não recarregar novamente
             const lastReload = localStorage.getItem('last_reload');
             const now = new Date().getTime();
-            
+
             if (!lastReload || (now - parseInt(lastReload)) > 5000) {
                 localStorage.setItem('last_reload', now);
                 // Forçar recarga do CSS sem recarregar a página
@@ -87,14 +88,14 @@ $route = $_GET['route'] ?? 'home';
         }
     })();
     </script>
-    
+
     <!-- IMask para máscaras de input -->
     <script src="https://unpkg.com/imask"></script>
-    
+
     <?php if (getSetting('pwa_enabled') === '1' || isset($_GET['pwa'])): ?>
     <!-- Script do PWA -->
     <script src="<?php echo url('assets/js/pwa.js?v=' . time()); ?>"></script>
-    
+
     <!-- Script para forçar atualização do service worker -->
     <script>
     // Forçar atualização do service worker para resolver problemas de cache
@@ -109,7 +110,7 @@ $route = $_GET['route'] ?? 'home';
     </script>
     <?php endif; ?>
 </head>
-<?php 
+<?php
     // Definir classes de autenticação para o corpo
     $auth_classes = '';
     if ($is_logged_in) {
@@ -123,7 +124,7 @@ $route = $_GET['route'] ?? 'home';
 ?>
 <body class="<?php echo $body_class; ?> theme-applied<?php echo $auth_classes; ?>"><?php echo "\n"; ?>
     <?php if ($is_logged_in): ?>
-    <?php 
+    <?php
     // Calcula o número de notificações não lidas
     $unread_count = 0;
     if ($is_logged_in) {
@@ -132,20 +133,20 @@ $route = $_GET['route'] ?? 'home';
         $stmt = $conn->prepare("SHOW TABLES LIKE 'notifications'");
         $stmt->execute();
         $table_exists = $stmt->rowCount() > 0;
-        
+
         if ($table_exists && is_array($current_user) && isset($current_user['id'])) {
             $unread_count = countUnreadNotifications($current_user['id']);
         }
     }
     ?>
     <!-- Navbar para usuários logados -->
-    <nav class="navbar navbar-expand-lg">
+    <nav class="navbar navbar-expand-lg bg-light shadow-sm"> <!-- Navbar com fundo claro e sombra leve -->
         <div class="container-fluid">
             <a class="navbar-brand" href="<?php echo url('index.php?route=dashboard'); ?>">
-                <?php 
+                <?php
                 // Verificar se há um logo personalizado
                 $logo_url = getSetting('logo_url');
-                if (!empty($logo_url)): 
+                if (!empty($logo_url)):
                     $logo_full_url = url($logo_url);
                     error_log("Logo URL para usuários logados: " . $logo_full_url);
                 ?>
@@ -155,7 +156,7 @@ $route = $_GET['route'] ?? 'home';
                 <?php echo getSetting('site_name') ?: 'ConCamp'; ?>
                 <?php endif; ?>
             </a>
-            
+
             <!-- Mobile Notification Bell - visível apenas em dispositivos móveis -->
             <a class="d-lg-none ms-2 me-2 position-relative" href="<?php echo url('index.php?route=notifications&pwa=1&ref=header&role=' . $user_role); ?>">
                 <i class="fas fa-bell notification-bell"></i>
@@ -166,12 +167,12 @@ $route = $_GET['route'] ?? 'home';
                 </span>
                 <?php endif; ?>
             </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <!-- Botão de menu responsivo -->
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav"> <!-- Menu recolhível, alinhado à direita em telas grandes -->
+                <ul class="navbar-nav">
                     <!-- Informações do usuário (apenas visível no mobile) -->
                     <li class="nav-item d-lg-none mb-3">
                         <div class="user-info">
@@ -180,7 +181,7 @@ $route = $_GET['route'] ?? 'home';
                                 <?php echo (is_array($current_user) && isset($current_user['name'])) ? $current_user['name'] : 'Usuário'; ?>
                             </div>
                             <div class="user-role">
-                                <?php 
+                                <?php
                                     $role_labels = [
                                         'admin' => 'Administrador',
                                         'manager' => 'Gerente',
@@ -191,7 +192,7 @@ $route = $_GET['route'] ?? 'home';
                             </div>
                         </div>
                     </li>
-                    
+
                     <!-- Itens para desktop e mobile -->
                     <li class="nav-item">
                         <a class="nav-link <?php echo $route === 'dashboard' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=dashboard'); ?>">
@@ -203,7 +204,7 @@ $route = $_GET['route'] ?? 'home';
                             <i class="menu-icon-mobile fas fa-users me-1"></i> Leads
                         </a>
                     </li>
-                    
+
                     <?php if ($user_role === 'seller'): ?>
                     <!-- Menu específico para vendedores -->
                     <li class="nav-item">
@@ -212,14 +213,14 @@ $route = $_GET['route'] ?? 'home';
                         </a>
                     </li>
                     <?php endif; ?>
-                    
+
                     <?php if ($user_role === 'admin'): ?>
                     <!-- Menu de administração -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle <?php echo strpos($route, 'admin-') === 0 ? 'active' : ''; ?>" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle <?php echo strpos($route, 'admin-') === 0 ? 'active' : ''; ?>" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="menu-icon-mobile fas fa-cog me-1"></i> Administração
                         </a>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
                             <li>
                                 <a class="dropdown-item <?php echo $route === 'admin-users' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=admin-users'); ?>">
                                     <i class="menu-icon-mobile fas fa-users-cog me-1"></i> Usuários
@@ -250,7 +251,7 @@ $route = $_GET['route'] ?? 'home';
                                     <i class="menu-icon-mobile fas fa-chart-bar me-1"></i> Relatórios
                                 </a>
                             </li>
-                            <li>
+                             <li>
                                 <a class="dropdown-item <?php echo $route === 'create-task-notification-field' ? 'active' : ''; ?>" href="<?php echo url('index.php?route=create-task-notification-field'); ?>">
                                     <i class="menu-icon-mobile fas fa-tasks me-1"></i> Configurar Notificações de Tarefas
                                 </a>
@@ -258,12 +259,12 @@ $route = $_GET['route'] ?? 'home';
                         </ul>
                     </li>
                     <?php endif; ?>
-                    
+
                     <!-- Separador para mobile -->
                     <li class="nav-item d-lg-none">
                         <div class="nav-divider"></div>
                     </li>
-                    
+
                     <!-- Link para instalar PWA (mobile) - sempre visível independente do perfil -->
                     <?php if (getSetting('pwa_enabled') === '1' || isset($_GET['pwa'])): ?>
                     <li class="nav-item d-lg-none">
@@ -272,18 +273,16 @@ $route = $_GET['route'] ?? 'home';
                         </a>
                     </li>
                     <?php endif; ?>
-                    
+
                     <!-- Link para sair (apenas mobile) -->
                     <li class="nav-item d-lg-none">
                         <a class="nav-link" href="<?php echo url('index.php?route=logout'); ?>">
                             <i class="menu-icon-mobile fas fa-sign-out-alt me-1"></i> Sair
                         </a>
                     </li>
-                </ul>
-                
-                <ul class="navbar-nav d-none d-lg-flex">
+
                     <!-- Notification Bell Icon with Counter - visível apenas em desktop -->
-                    <li class="nav-item dropdown me-3">
+                    <li class="nav-item dropdown ms-lg-2 d-none d-lg-block"> <!-- Ajuste de margem e d-none d-lg-block -->
                         <a class="nav-link position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-bell notification-bell"></i>
                             <?php if ($unread_count > 0): ?>
@@ -303,16 +302,16 @@ $route = $_GET['route'] ?? 'home';
                                 <?php endif; ?>
                             </div>
                             <div class="notification-body">
-                                <?php 
+                                <?php
                                 $notifications = [];
                                 if ($is_logged_in && isset($table_exists) && $table_exists && is_array($current_user) && isset($current_user['id'])) {
                                     $notifications = getUserNotifications($current_user['id'], false, 5);
                                 }
-                                
-                                if (count($notifications) > 0): 
+
+                                if (count($notifications) > 0):
                                     foreach ($notifications as $notification):
                                 ?>
-                                <a class="dropdown-item notification-item <?php echo $notification['is_read'] ? '' : 'unread'; ?>" 
+                                <a class="dropdown-item notification-item <?php echo $notification['is_read'] ? '' : 'unread'; ?>"
                                     href="<?php echo !empty($notification['action_url']) ? url($notification['action_url']) : '#'; ?>"
                                     data-notification-id="<?php echo $notification['id']; ?>"
                                     data-user-id="<?php echo (is_array($current_user) && isset($current_user['id'])) ? $current_user['id'] : 0; ?>">
@@ -329,9 +328,9 @@ $route = $_GET['route'] ?? 'home';
                                         </div>
                                     </div>
                                 </a>
-                                <?php 
-                                    endforeach; 
-                                else: 
+                                <?php
+                                    endforeach;
+                                else:
                                 ?>
                                 <div class="text-center p-3">
                                     <p class="text-muted mb-0">Nenhuma notificação</p>
@@ -345,14 +344,14 @@ $route = $_GET['route'] ?? 'home';
                             </div>
                         </div>
                     </li>
-                    
+
                     <!-- User Dropdown (apenas desktop) -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                    <li class="nav-item dropdown ms-lg-2 d-none d-lg-block"> <!-- Ajuste de margem e d-none d-lg-block -->
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-user-circle me-1"></i>
                             <?php echo (is_array($current_user) && isset($current_user['name'])) ? $current_user['name'] : 'Usuário'; ?>
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <?php if (getSetting('pwa_enabled') === '1'): ?>
                             <li>
                                 <a class="dropdown-item" href="#" id="menuInstallPwa">
@@ -372,9 +371,9 @@ $route = $_GET['route'] ?? 'home';
             </div>
         </div>
     </nav>
-    
+
     <!-- Removido o menu fixo inferior -->
-    
+
     <!-- Mensagens de feedback -->
     <div class="container mt-3">
         <?php if (isset($_SESSION['success_message'])): ?>
@@ -384,7 +383,7 @@ $route = $_GET['route'] ?? 'home';
         </div>
         <?php unset($_SESSION['success_message']); ?>
         <?php endif; ?>
-        
+
         <?php if (isset($_SESSION['error_message'])): ?>
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <?php echo $_SESSION['error_message']; ?>
@@ -393,18 +392,18 @@ $route = $_GET['route'] ?? 'home';
         <?php unset($_SESSION['error_message']); ?>
         <?php endif; ?>
     </div>
-    
+
     <!-- Conteúdo principal para usuários logados -->
     <div class="container mt-4">
     <?php else: ?>
     <!-- Navbar para visitantes -->
-    <nav class="navbar navbar-expand-lg">
+    <nav class="navbar navbar-expand-lg bg-light shadow-sm"> <!-- Navbar para visitantes com fundo claro e sombra leve -->
         <div class="container">
             <a class="navbar-brand" href="<?php echo url('index.php'); ?>">
-                <?php 
+                <?php
                 // Verificar se há um logo personalizado
                 $logo_url = getSetting('logo_url');
-                if (!empty($logo_url)): 
+                if (!empty($logo_url)):
                     $logo_full_url = url($logo_url);
                     error_log("Logo URL para visitantes: " . $logo_full_url);
                 ?>
@@ -414,19 +413,17 @@ $route = $_GET['route'] ?? 'home';
                 <?php echo getSetting('site_name') ?: 'ConCamp'; ?>
                 <?php endif; ?>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <!-- Botão de menu responsivo -->
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav"> <!-- Menu recolhível, alinhado à direita em telas grandes -->
+                <ul class="navbar-nav">
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo url('index.php'); ?>">Home</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo url('index.php?route=simulador'); ?>">Simulador</a>
                     </li>
-                </ul>
-                <ul class="navbar-nav">
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo url('index.php?route=login'); ?>">
                             <i class="fas fa-sign-in-alt me-1"></i> Login
@@ -436,7 +433,7 @@ $route = $_GET['route'] ?? 'home';
             </div>
         </div>
     </nav>
-    
+
     <!-- Mensagens de feedback para visitantes -->
     <div class="container mt-3">
         <?php if (isset($_SESSION['success_message'])): ?>
@@ -446,7 +443,7 @@ $route = $_GET['route'] ?? 'home';
         </div>
         <?php unset($_SESSION['success_message']); ?>
         <?php endif; ?>
-        
+
         <?php if (isset($_SESSION['error_message'])): ?>
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <?php echo $_SESSION['error_message']; ?>
@@ -455,7 +452,7 @@ $route = $_GET['route'] ?? 'home';
         <?php unset($_SESSION['error_message']); ?>
         <?php endif; ?>
     </div>
-    
+
     <!-- Conteúdo principal para visitantes -->
     <div class="container mt-4">
     <?php endif; ?>

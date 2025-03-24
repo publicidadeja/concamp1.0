@@ -3,12 +3,12 @@
  * API para marcar tarefa como concluída
  */
 
-// Verificar se é uma solicitação AJAX
-$is_ajax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
-           strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+// Incluir arquivos necessários
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/auth.php';
 
-// Definir cabeçalho de resposta JSON
-header('Content-Type: application/json');
+// Nota: O cabeçalho Content-Type já foi definido em index.php
 
 // Verificar autenticação
 if (!isLoggedIn()) {
@@ -46,21 +46,33 @@ if (empty($_POST['task_id'])) {
 
 $task_id = (int) $_POST['task_id'];
 
-// Verificar se a tarefa existe e pertence ao usuário atual
+// Verificar se a tarefa existe (permitir que qualquer usuário conclua qualquer tarefa)
+// Este comportamento pode ser ajustado conforme a política da empresa
 $stmt = $conn->prepare("
-    SELECT * FROM follow_ups
-    WHERE id = :id AND user_id = :user_id AND type = 'task'
+    SELECT f.*, l.name as lead_name 
+    FROM follow_ups f
+    JOIN leads l ON f.lead_id = l.id
+    WHERE f.id = :id AND f.type = 'task'
 ");
 $stmt->execute([
-    'id' => $task_id,
-    'user_id' => $current_user['id']
+    'id' => $task_id
 ]);
 $task = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$task) {
     echo json_encode([
         'success' => false,
-        'error' => 'Tarefa não encontrada ou não pertence a este usuário'
+        'error' => 'Tarefa não encontrada'
+    ]);
+    exit;
+}
+
+// Verificar se o usuário tem permissão para completar a tarefa
+// Administradores podem completar quaisquer tarefas, outros usuários apenas as suas
+if (!isAdmin() && $task['user_id'] != $current_user['id']) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'Você não tem permissão para completar esta tarefa'
     ]);
     exit;
 }

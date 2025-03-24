@@ -116,7 +116,7 @@ $pending_tasks = getUserPendingTasks($user_id);
             <?php else: ?>
                 <div class="list-group">
                     <?php foreach ($pending_tasks as $task): ?>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="list-group-item task-item d-flex justify-content-between align-items-center" data-task-id="<?php echo $task['id']; ?>">
                             <div>
                                 <h6 class="mb-1"><?php echo sanitize($task['content']); ?></h6>
                                 <small class="text-muted">

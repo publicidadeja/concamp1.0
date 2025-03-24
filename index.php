@@ -212,7 +212,18 @@ switch ($route) {
         include_once __DIR__ . '/pages/create-task-notification-field.php';
         break;
     case 'api-complete-task': // API para marcar tarefa como concluída
+        // Suprimir erros e avisos para garantir resposta JSON limpa
+        error_reporting(0);
+        ini_set('display_errors', 0);
+        
+        // Suprimir saída anterior e incluir apenas a API
+        ob_clean();
+        
+        // Definir cabeçalho JSON antes de incluir o arquivo
+        header('Content-Type: application/json');
+        
         include_once __DIR__ . '/pages/api-complete-task.php';
+        exit; // Importante: encerrar execução aqui para não incluir header/footer
         break;
     default:
         // Rota customizada para landing pages de vendedores (ex: /lp/nome-do-vendedor)

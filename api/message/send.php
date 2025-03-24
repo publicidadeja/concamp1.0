@@ -18,41 +18,206 @@ header('Content-Type: application/json');
 error_log('API message/send.php: Iniciada - ' . date('Y-m-d H:i:s'));
 error_log('Dados recebidos: ' . json_encode($_POST));
 
+/**
+ * Função para obter mensagem de erro de upload
+ * @param int $error_code Código de erro de upload
+ * @return string Descrição do erro
+ */
+function getUploadErrorMessage($error_code) {
+    switch ($error_code) {
+        case UPLOAD_ERR_INI_SIZE:
+            return "O arquivo excede o tamanho máximo permitido pelo PHP (php.ini).";
+        case UPLOAD_ERR_FORM_SIZE:
+            return "O arquivo excede o tamanho máximo permitido pelo formulário.";
+        case UPLOAD_ERR_PARTIAL:
+            return "O upload do arquivo foi feito parcialmente.";
+        case UPLOAD_ERR_NO_FILE:
+            return "Nenhum arquivo foi enviado.";
+        case UPLOAD_ERR_NO_TMP_DIR:
+            return "Diretório temporário não encontrado.";
+        case UPLOAD_ERR_CANT_WRITE:
+            return "Falha ao gravar arquivo no disco.";
+        case UPLOAD_ERR_EXTENSION:
+            return "Uma extensão PHP interrompeu o upload.";
+        default:
+            return "Erro desconhecido.";
+    }
+}
+
+/**
+ * Processa o upload de um arquivo de mídia
+ * @param array $file Dados do arquivo
+ * @return array Array com informações do upload (success, media_url, media_type, error)
+ */
+function processMediaUpload($file) {
+    $result = [
+        'success' => false,
+        'media_url' => null,
+        'media_type' => null,
+        'error' => null
+    ];
+
+    if (!isset($file) || $file['error'] !== 0) {
+        $result['error'] = isset($file) ? getUploadErrorMessage($file['error']) : 'Nenhum arquivo enviado';
+        return $result;
+    }
+
+    $temp_file = $file['tmp_name'];
+    $media_type = $file['type'];
+
+    // Criar diretório de uploads se não existir
+    $upload_dir = __DIR__ . '/../../uploads/media/';
+    if (!file_exists($upload_dir)) {
+        error_log('Criando diretório de uploads: ' . $upload_dir);
+        if (!mkdir($upload_dir, 0755, true)) {
+            $result['error'] = 'Falha ao criar diretório de uploads';
+            return $result;
+        }
+    }
+
+    // Nome do arquivo com timestamp para evitar colisões
+    $filename = time() . '_' . $file['name'];
+    $upload_path = $upload_dir . $filename;
+
+    // Log de depuração
+    error_log('Tentando mover arquivo de ' . $temp_file . ' para: ' . $upload_path);
+
+    // Mover o arquivo para o diretório de uploads
+    if (move_uploaded_file($temp_file, $upload_path)) {
+        $result['success'] = true;
+        $result['media_url'] = 'uploads/media/' . $filename; // Caminho relativo para o arquivo
+        $result['media_type'] = $media_type;
+        error_log('Upload bem-sucedido: ' . $result['media_url']);
+    } else {
+        $result['error'] = 'Falha ao mover arquivo para o diretório de destino';
+        error_log('ERRO: ' . $result['error'] . ': ' . $upload_path);
+        error_log('Permissões do diretório: ' . substr(sprintf('%o', fileperms($upload_dir)), -4));
+    }
+
+    return $result;
+}
+
+/**
+ * Obtém o token de WhatsApp adequado com base no usuário atual e no lead
+ * @param array $current_user Dados do usuário atual
+ * @param array $lead Dados do lead
+ * @param bool $is_admin Se o usuário é admin
+ * @return string|null Token de WhatsApp ou null se não encontrado
+ */
+function getWhatsAppToken($current_user, $lead, $is_admin) {
+    $token = null;
+    $user_id = $current_user['id'];
+    
+    // Se o usuário atual é o vendedor atribuído, usar seu token personalizado
+    if ($user_id == $lead['seller_id'] && !empty($current_user['whatsapp_token'])) {
+        $token = $current_user['whatsapp_token'];
+        error_log('Usando token de WhatsApp do vendedor: ' . $user_id . ' - ' . $token);
+    }
+    // Se usuário é admin, verificar token do vendedor atribuído
+    else if ($is_admin && !empty($lead['seller_id'])) {
+        // Tentar obter token do vendedor atribuído ao lead
+        $seller = getUserById($lead['seller_id']);
+        
+        if ($seller && !empty($seller['whatsapp_token'])) {
+            $token = $seller['whatsapp_token'];
+            error_log('Admin usando token de WhatsApp do vendedor atribuído: ' . $lead['seller_id'] . ' - ' . $token);
+        } else {
+            // Usar token global de backup
+            $token = getSetting('whatsapp_api_token', '');
+            error_log('Vendedor atribuído não tem token. Usando token global: ' . (empty($token) ? 'Não configurado' : 'Configurado'));
+        }
+    } else {
+        // Tentar usar token global como último recurso
+        $token = getSetting('whatsapp_api_token', '');
+        error_log('Usando token global de WhatsApp: ' . (empty($token) ? 'Não configurado' : 'Configurado'));
+    }
+    
+    return $token;
+}
+
+/**
+ * Verifica e processa o resultado do envio de WhatsApp
+ * @param mixed $result Resultado da API de WhatsApp
+ * @return array Array com status do envio (success, message_id, error)
+ */
+function processWhatsAppResult($result) {
+    $response = [
+        'success' => false,
+        'message_id' => null,
+        'error' => null
+    ];
+    
+    // Se não houver resultado, retornar erro
+    if ($result === false) {
+        $response['error'] = 'Falha na comunicação com a API de WhatsApp';
+        return $response;
+    }
+    
+    // Verificar se temos um resultado de sucesso
+    if (isset($result['success']) && $result['success'] === true) {
+        $response['success'] = true;
+        
+        // Capturar ID da mensagem se disponível
+        if (isset($result['message_id'])) {
+            $response['message_id'] = $result['message_id'];
+        }
+    } else {
+        // Capturar mensagem de erro se disponível
+        if (isset($result['error'])) {
+            $response['error'] = $result['error'];
+        } else {
+            $response['error'] = 'Erro desconhecido no envio do WhatsApp';
+        }
+    }
+    
+    return $response;
+}
+
 try {
     // Verificar método
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Método não permitido');
     }
-    
+
     // Verificar parâmetros essenciais
     if (!isset($_POST['lead_id']) || !isset($_POST['message'])) {
-        throw new Exception('Parâmetros incompletos');
+        throw new Exception('Parâmetros incompletos: ID do lead e mensagem são obrigatórios');
     }
-    
+
     // Verificar CSRF token
     if (!isset($_POST['csrf_token']) || !verifyCsrfToken($_POST['csrf_token'])) {
-        throw new Exception('Token de segurança inválido');
+        throw new Exception('Token de segurança inválido ou expirado');
     }
-    
+
     // Obter dados básicos
     $lead_id = intval($_POST['lead_id']);
-    $message = $_POST['message'];
+    $message = trim($_POST['message']);
     
+    // Validar mensagem não vazia
+    if (empty($message)) {
+        throw new Exception('A mensagem não pode estar vazia');
+    }
+
     // Obter usuário atual
     $current_user = getCurrentUser();
     if (!$current_user) {
-        throw new Exception('Usuário não autenticado');
+        throw new Exception('Usuário não autenticado. Faça login novamente.');
     }
-    
+
     $user_id = $current_user['id'];
     $is_admin = isAdmin();
-    
+
     // Obter dados do lead
     $lead = getLeadById($lead_id);
     if (!$lead) {
-        throw new Exception('Lead não encontrado');
+        throw new Exception('Lead não encontrado. Verifique se o ID está correto.');
     }
-    
+
+    // Verificar permissão (apenas admin ou vendedor atribuído pode enviar mensagem)
+    if (!$is_admin && $lead['seller_id'] != $user_id) {
+        throw new Exception('Você não tem permissão para enviar mensagem para este lead');
+    }
+
     // Processar variáveis na mensagem
     $message_data = [
         'nome' => $lead['name'],
@@ -63,356 +228,128 @@ try {
         'valor_demais' => $lead['other_installments'],
         'nome_consultor' => $current_user['name']
     ];
+
+    error_log('Mensagem original: ' . $message);
+
+    // Substituir variáveis no template - tanto no formato {{var}} quanto {var}
+    $message = processMessageTemplate($message, $message_data);
     
-    // Função local para processar template
-    function processMessageTemplateLocal($msg, $data) {
-        foreach ($data as $key => $value) {
-            $msg = str_replace('{' . $key . '}', $value, $msg);
-        }
-        return $msg;
+    // Garantir que nenhuma variável ficou sem substituição
+    foreach ($message_data as $key => $value) {
+        $message = str_replace(['{' . $key . '}', '{{' . $key . '}}'], $value, $message);
     }
-    
-    // Substituir variáveis no template usando a função local definida acima
-    $message = processMessageTemplateLocal($message, $message_data);
-    
-    // Verificar permissão (apenas admin ou vendedor atribuído pode enviar mensagem)
-    if (!$is_admin && $lead['seller_id'] != $user_id) {
-        throw new Exception('Você não tem permissão para enviar mensagem para este lead');
-    }
-    
-    // Obter o token de WhatsApp apropriado (preferência para o token do vendedor)
-    $whatsapp_token = null;
-    
-    // Fazer log do usuário atual para depuração
-    error_log("Dados do usuário atual: " . json_encode($current_user));
-    error_log("ID do vendedor do lead: " . $lead['seller_id']);
-    error_log("ID do usuário atual: " . $user_id);
-    
-    // Se o usuário atual é o vendedor atribuído, usar seu token personalizado
-    if ($user_id == $lead['seller_id'] && !empty($current_user['whatsapp_token'])) {
-        $whatsapp_token = $current_user['whatsapp_token'];
-        error_log('Usando token de WhatsApp do vendedor: ' . $user_id . ' - ' . $whatsapp_token);
-    }
-    // Se não tem token do vendedor ou usuário é admin, usar token global
-    else if ($is_admin && !empty($lead['seller_id'])) {
-        // Tentar obter token do vendedor atribuído ao lead
-        $seller = getUserById($lead['seller_id']);
-        error_log("Dados do vendedor atribuído: " . json_encode($seller));
-        
-        if ($seller && !empty($seller['whatsapp_token'])) {
-            $whatsapp_token = $seller['whatsapp_token'];
-            error_log('Admin usando token de WhatsApp do vendedor atribuído: ' . $lead['seller_id'] . ' - ' . $whatsapp_token);
-        } else {
-            error_log('Vendedor atribuído não tem token de WhatsApp. Usando token global.');
-            // Usar token global de backup
-            $whatsapp_token = getSetting('whatsapp_api_token', '');
-            error_log('Usando token global de WhatsApp: ' . (empty($whatsapp_token) ? 'Não configurado' : 'Token configurado'));
-        }
-    } else {
-        // Tentar usar token global como último recurso
-        $whatsapp_token = getSetting('whatsapp_api_token', '');
-        error_log('Usando token global de WhatsApp: ' . (empty($whatsapp_token) ? 'Não configurado' : 'Token configurado'));
-    }
-    
+
+    error_log('Mensagem processada: ' . $message);
+
+    // Obter o token de WhatsApp apropriado
+    $whatsapp_token = getWhatsAppToken($current_user, $lead, $is_admin);
+
     // Registrar template_id se fornecido
     $template_id = isset($_POST['template_id']) ? intval($_POST['template_id']) : null;
-    
+
     // Processar upload de mídia (se houver)
-    $media_url = null;
-    $media_type = null;
-    $temp_file = null;
-    
-    // Log de depuração de arquivos
-    error_log('Conteúdo de $_FILES: ' . json_encode($_FILES));
+    $media_upload = ['success' => false, 'media_url' => null, 'media_type' => null];
     
     if (isset($_FILES['media'])) {
-        error_log('Detalhes de mídia: ' . json_encode($_FILES['media']));
+        error_log('Processando mídia: ' . json_encode($_FILES['media']));
+        $media_upload = processMediaUpload($_FILES['media']);
         
-        if ($_FILES['media']['error'] === 0) {
-            $temp_file = $_FILES['media']['tmp_name'];
-            $media_type = $_FILES['media']['type'];
-            
-            // Criar diretório de uploads se não existir
-            $upload_dir = __DIR__ . '/../../uploads/media/';
-            if (!file_exists($upload_dir)) {
-                error_log('Criando diretório de uploads: ' . $upload_dir);
-                mkdir($upload_dir, 0755, true);
-            }
-            
-            // Nome do arquivo com timestamp para evitar colisões
-            $filename = time() . '_' . $_FILES['media']['name'];
-            $upload_path = $upload_dir . $filename;
-            
-            // Log de depuração
-            error_log('Tentando mover arquivo para: ' . $upload_path);
-            
-            // Mover o arquivo para o diretório de uploads
-            if (move_uploaded_file($temp_file, $upload_path)) {
-                $media_url = 'uploads/media/' . $filename;
-                error_log('Upload bem-sucedido: ' . $media_url);
-            } else {
-                error_log('ERRO: Falha ao mover arquivo para: ' . $upload_path);
-                error_log('Permissões do diretório: ' . substr(sprintf('%o', fileperms($upload_dir)), -4));
-            }
-            
-            error_log('Mídia válida detectada: ' . $media_type);
-            error_log('Arquivo temporário: ' . $temp_file);
-            error_log('URL da mídia final: ' . $media_url);
-        } else {
-            error_log('Erro no upload de mídia: ' . $_FILES['media']['error'] . ' - ' . getUploadErrorMessage($_FILES['media']['error']));
-        }
-    } else {
-        error_log('Nenhuma mídia detectada nos arquivos enviados');
-    }
-
-    /* Esta função foi movida para o início do fluxo - linha ~68 */
-
-/**
- * Função para enviar mensagem via WhatsApp - Usa a função global do sistema
- * com suporte à nova API
- */
-function sendWhatsAppMessage($phone, $message, $media = null, $token) {
-    error_log("Wrapper de sendWhatsAppMessage em api/message/send.php chamada com token: " . substr($token, 0, 5) . "...");
-    error_log("Parâmetros: phone=" . $phone . ", message=" . substr($message, 0, 30) . "..., media=" . ($media ? "presente" : "null"));
-    
-    try {
-        // Reutiliza a função global com a implementação atualizada
-        // Esta função é apenas um wrapper para compatibilidade com
-        // código existente neste arquivo
-        
-        // Chamar a função global que agora suporta a nova API
-        // O prefixo "\" força o uso da função do namespace global e não desta local
-        $result = \sendWhatsAppMessage($phone, $message, $media, $token);
-        error_log("Resultado da chamada global de sendWhatsAppMessage: " . json_encode($result));
-        return $result;
-    } catch (Exception $e) {
-        error_log("ERRO no wrapper sendWhatsAppMessage: " . $e->getMessage());
-        return [
-            'success' => false,
-            'error' => 'Erro ao enviar mensagem: ' . $e->getMessage(),
-            'data' => null
-        ];
-    }
-}
-
-/**
- * Função para enviar WhatsApp com fallback - Não mais necessária com a nova API
- * que suporta envio de texto e mídia juntos, mas mantida para compatibilidade
- */
-function sendWhatsAppWithFallback($phone, $message, $media, $token) {
-    error_log("Usando sendWhatsAppMessage para envio unificado de mídia e texto");
-    
-    // Com a nova API, podemos enviar mídia e texto em uma única chamada
-    return sendWhatsAppMessage($phone, $message, $media, $token);
-}
-
-/**
- * Função para registrar mensagem enviada
- */
-function registerSentMessage($lead_id, $user_id, $message, $template_id = null, $media_url = null, $media_type = null, $status = 'sent', $external_id = null) {
-    $conn = getConnection();
-    
-    try {
-        // Verificar se a tabela existe
-        $conn->query("CREATE TABLE IF NOT EXISTS `lead_messages` (
-            `id` int(11) NOT NULL AUTO_INCREMENT,
-            `lead_id` int(11) NOT NULL,
-            `user_id` int(11) NOT NULL,
-            `template_id` int(11) DEFAULT NULL,
-            `message` text NOT NULL,
-            `media_url` varchar(255) DEFAULT NULL,
-            `media_type` varchar(50) DEFAULT NULL,
-            `status` varchar(20) NOT NULL DEFAULT 'sent',
-            `external_id` varchar(100) DEFAULT NULL,
-            `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (`id`),
-            KEY `lead_id` (`lead_id`),
-            KEY `user_id` (`user_id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        
-        // Log dos parâmetros recebidos
-        error_log("Tentando registrar mensagem com parâmetros:");
-        error_log("Lead ID: " . $lead_id);
-        error_log("User ID: " . $user_id);
-        error_log("Message: " . $message);
-        error_log("Status: " . $status);
-        
-        // Preparar e executar a inserção
-        $sql = "INSERT INTO lead_messages 
-                (lead_id, user_id, template_id, message, media_url, media_type, status, external_id, created_at) 
-                VALUES 
-                (:lead_id, :user_id, :template_id, :message, :media_url, :media_type, :status, :external_id, NOW())";
-        
-        $stmt = $conn->prepare($sql);
-        
-        $params = [
-            'lead_id' => $lead_id,
-            'user_id' => $user_id,
-            'template_id' => $template_id,
-            'message' => $message,
-            'media_url' => $media_url,
-            'media_type' => $media_type,
-            'status' => $status,
-            'external_id' => $external_id
-        ];
-        
-        // Log da query e parâmetros
-        error_log("SQL: " . $sql);
-        error_log("Parâmetros: " . json_encode($params));
-        
-        $result = $stmt->execute($params);
-        
-        if ($result) {
-            $message_id = $conn->lastInsertId();
-            error_log("Mensagem registrada com sucesso. ID: " . $message_id);
-            return $message_id;
-        }
-        
-        error_log("Falha ao registrar mensagem no banco de dados");
-        return false;
-        
-    } catch (PDOException $e) {
-        error_log("Erro PDO ao registrar mensagem: " . $e->getMessage());
-        return false;
-    } catch (Exception $e) {
-        error_log("Erro ao registrar mensagem: " . $e->getMessage());
-        return false;
-    }
-}
-    
-    // Função para obter mensagem de erro de upload
-    function getUploadErrorMessage($error_code) {
-        switch ($error_code) {
-            case UPLOAD_ERR_INI_SIZE:
-                return "O arquivo excede o tamanho máximo permitido pelo PHP (php.ini).";
-            case UPLOAD_ERR_FORM_SIZE:
-                return "O arquivo excede o tamanho máximo permitido pelo formulário.";
-            case UPLOAD_ERR_PARTIAL:
-                return "O upload do arquivo foi feito parcialmente.";
-            case UPLOAD_ERR_NO_FILE:
-                return "Nenhum arquivo foi enviado.";
-            case UPLOAD_ERR_NO_TMP_DIR:
-                return "Diretório temporário não encontrado.";
-            case UPLOAD_ERR_CANT_WRITE:
-                return "Falha ao gravar arquivo no disco.";
-            case UPLOAD_ERR_EXTENSION:
-                return "Uma extensão PHP interrompeu o upload.";
-            default:
-                return "Erro desconhecido.";
+        if (!$media_upload['success'] && $media_upload['error']) {
+            error_log('Erro no upload de mídia: ' . $media_upload['error']);
+            // Não lançar exceção, apenas registrar o erro e continuar sem mídia
         }
     }
-    
+
+    // Variáveis para mídia
+    $media_url = $media_upload['success'] ? $media_upload['media_url'] : null;
+    $media_type = $media_upload['success'] ? $media_upload['media_type'] : null;
+
     // Tentar enviar a mensagem via WhatsApp se tiver token
-    $whatsapp_result = false;
+    $whatsapp_status = ['success' => false, 'message_id' => null, 'error' => null];
+    
     if (!empty($whatsapp_token)) {
-        error_log('Tentando enviar mensagem via WhatsApp com token personalizado');
-        
-        // Verificar se a mensagem está vazia (o que seria inválido)
-        if (trim($message) === '') {
-            error_log('Mensagem vazia detectada. Adicionando espaço em branco para garantir envio.');
-            $message = ' '; // Garantir que não enviaremos uma mensagem totalmente vazia
-        }
-        
+        error_log('Tentando enviar mensagem via WhatsApp');
+
         // Preparar dados de mídia se existir
         $media_data = null;
         $has_media = false;
-        
-        if (isset($_FILES['media']) && $_FILES['media']['error'] === 0) {
-            // Usar o arquivo temporário enviado
+
+        if ($media_upload['success']) {
             $media_data = [
-                'path' => $_FILES['media']['tmp_name'],
-                'type' => $_FILES['media']['type'],
-                'name' => $_FILES['media']['name']
-            ];
-            $has_media = true;
-            error_log('Mídia válida detectada para envio: ' . $_FILES['media']['name'] . ' (' . $_FILES['media']['type'] . ')');
-        } else if ($media_url && $media_type) {
-            // Caminho completo para o arquivo
-            $complete_path = __DIR__ . '/../../' . $media_url;
-            
-            // Compatibilidade com o código anterior ou simulação
-            $media_data = [
-                'path' => file_exists($complete_path) ? $complete_path : $media_url,
+                'path' => $media_url,
                 'type' => $media_type,
                 'name' => basename($media_url)
             ];
             $has_media = true;
-            error_log('Usando dados de mídia: ' . json_encode($media_data));
+            error_log('Mídia para envio: ' . json_encode($media_data));
         }
-        
-        // Log para facilitar o diagnóstico
+
+        // Log para diagnóstico
         error_log('Enviando para número: ' . $lead['phone']);
-        error_log('Mensagem a ser enviada: ' . $message);
         error_log('Possui mídia: ' . ($has_media ? 'Sim' : 'Não'));
+
+        // Enviar mensagem com ou sem mídia
+        $whatsapp_result = false;
         
-        // Usar a função com fallback para garantir que tanto mídia quanto texto sejam enviados
         if ($has_media) {
-            // Usar a estratégia otimizada para enviar mídia e texto separadamente
             $whatsapp_result = sendWhatsAppWithFallback(
                 $lead['phone'],
                 $message,
                 $media_data,
                 $whatsapp_token
             );
-            
-            error_log('Resultado final do envio WhatsApp com mídia e texto: ' . json_encode($whatsapp_result));
         } else {
-            // Envio apenas de texto - não precisa de estratégia especial
             $whatsapp_result = sendWhatsAppMessage(
                 $lead['phone'],
                 $message,
                 null,
                 $whatsapp_token
             );
-            
-            error_log('Resultado do envio WhatsApp apenas texto: ' . json_encode($whatsapp_result));
+        }
+        
+        // Processar resultado do envio
+        $whatsapp_status = processWhatsAppResult($whatsapp_result);
+        
+        if (!$whatsapp_status['success']) {
+            error_log('Falha no envio WhatsApp: ' . ($whatsapp_status['error'] ?? 'Erro desconhecido'));
+        } else {
+            error_log('WhatsApp enviado com sucesso. ID: ' . ($whatsapp_status['message_id'] ?? 'N/A'));
         }
     } else {
-        error_log('Nenhum token de WhatsApp disponível para envio real. Apenas registrando mensagem.');
+        error_log('Nenhum token de WhatsApp disponível. Apenas registrando mensagem.');
+        $whatsapp_status['error'] = 'Token de WhatsApp não configurado';
     }
+
+    // Registrar mensagem no banco de dados (sempre, mesmo que o envio falhe)
+    $message_status = $whatsapp_status['success'] ? 'sent' : 'pending';
+    $external_id = $whatsapp_status['message_id'];
+
+    error_log("Registrando mensagem com status: " . $message_status);
     
-    // Registrar mensagem no banco de dados
-    $message_status = ($whatsapp_result && $whatsapp_result['success']) ? 'sent' : 'pending';
-    
-    error_log("Tentando registrar mensagem com os seguintes parâmetros:");
-    error_log("Lead ID: " . $lead_id);
-    error_log("User ID: " . $user_id);
-    error_log("Template ID: " . ($template_id ?? 'null'));
-    error_log("Media URL: " . ($media_url ?? 'null'));
-    error_log("Media Type: " . ($media_type ?? 'null'));
-    error_log("Status: " . $message_status);
-    
-    try {
-        $message_id = registerSentMessage(
-            $lead_id,
-            $user_id,
-            $message,
-            $template_id,
-            $media_url,
-            $media_type,
-            $message_status,
-            null // message_id (ID externo da API de WhatsApp, se houver)
-        );
-        
-        if (!$message_id) {
-            error_log("registerSentMessage retornou false ou 0");
-            throw new Exception('Erro ao registrar mensagem no banco de dados');
-        }
-        
-        error_log("Mensagem registrada com sucesso. ID: " . $message_id);
-    } catch (Exception $reg_ex) {
-        error_log("Exceção ao registrar mensagem: " . $reg_ex->getMessage());
-        throw new Exception('Erro ao registrar mensagem: ' . $reg_ex->getMessage());
+    $message_id = registerSentMessage(
+        $lead_id,
+        $user_id,
+        $message,
+        $template_id,
+        $media_url,
+        $media_type,
+        $message_status,
+        $external_id
+    );
+
+    if (!$message_id) {
+        throw new Exception('Erro ao registrar mensagem no banco de dados');
     }
-    
-    error_log('Mensagem registrada com sucesso. ID: ' . $message_id);
-    
+
+    error_log("Mensagem registrada com sucesso. ID: " . $message_id);
+
     // Preparar resposta para o cliente
     $response = [
         'success' => true,
-        'message' => !empty($whatsapp_token) 
-            ? 'Mensagem enviada com sucesso via WhatsApp' 
-            : 'Mensagem registrada com sucesso (sem envio real via WhatsApp - token não configurado)',
+        'message' => $whatsapp_status['success']
+            ? 'Mensagem enviada com sucesso via WhatsApp'
+            : 'Mensagem registrada mas não foi enviada via WhatsApp' . 
+              ($whatsapp_status['error'] ? ': ' . $whatsapp_status['error'] : ''),
         'sent_message' => [
             'id' => $message_id,
             'content' => $message,
@@ -420,43 +357,44 @@ function registerSentMessage($lead_id, $user_id, $message, $template_id = null, 
             'sent_date' => date('d/m/Y H:i:s'),
             'media_url' => $media_url
         ],
-        'whatsapp_sent' => !empty($whatsapp_token)
+        'whatsapp_sent' => $whatsapp_status['success']
     ];
-    
+
+    // Adicionar informações sobre falha no upload de mídia, se houver
+    if (isset($_FILES['media']) && !$media_upload['success']) {
+        $response['media_error'] = $media_upload['error'];
+    }
+
     // Cabeçalhos para evitar problemas de cache
     header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
     header("Cache-Control: post-check=0, pre-check=0", false);
     header("Pragma: no-cache");
-    
-    // Garantir que o tipo de conteúdo é application/json
     header('Content-Type: application/json; charset=utf-8');
-    
+
     // Limpar buffer de saída
     if (ob_get_length()) ob_clean();
-    
+
     // Enviar resposta JSON
     echo json_encode($response);
-    exit; // Garantir que nada mais seja enviado
-    
+    exit;
+
 } catch (Exception $e) {
     // Log de erro
     error_log('Erro na API message/send.php: ' . $e->getMessage());
-    
+
     // Cabeçalhos para evitar problemas de cache
     header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
     header("Cache-Control: post-check=0, pre-check=0", false);
     header("Pragma: no-cache");
-    
-    // Garantir que o tipo de conteúdo é application/json
     header('Content-Type: application/json; charset=utf-8');
-    
+
     // Limpar buffer de saída
     if (ob_get_length()) ob_clean();
-    
+
     // Resposta de erro para o cliente
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()
     ]);
-    exit; // Garantir que nada mais seja enviado
+    exit;
 }

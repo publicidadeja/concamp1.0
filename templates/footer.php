@@ -21,66 +21,69 @@ $skip_global_footer = isset($skip_global_footer) && $skip_global_footer === true
                 <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
             <div class="toast-body" id="toastMessage">
-                
+
             </div>
         </div>
     </div>
 
 <?php elseif (!$skip_global_footer): ?>
     </main>
-    
+
     <!-- Site Footer -->
-    <footer class="site-footer py-4 mt-5 bg-light">
+    <footer class="site-footer bg-light py-5"> <!-- Rodapé com fundo claro e padding vertical -->
         <div class="container">
             <div class="row">
-                <div class="col-md-4 mb-4 mb-md-0">
-                    <h5>ConCamp</h5>
-                    <p class="text-muted">Especialistas em contratos premiados para aquisição de veículos desde 2002.</p>
+                <div class="col-lg-4 mb-4 mb-lg-0"> <!-- Coluna para informações da ConCamp -->
+                    <h5 class="mb-3">ConCamp</h5> <!-- Título da coluna -->
+                    <p class="text-muted">
+                        Especialistas em contratos premiados para aquisição de veículos desde 2002.
+                    </p>
                 </div>
-                <div class="col-md-4 mb-4 mb-md-0">
-                    <h5>Links Rápidos</h5>
+                <div class="col-lg-4 mb-4 mb-lg-0"> <!-- Coluna para links rápidos -->
+                    <h5 class="mb-3">Links Rápidos</h5> <!-- Título da coluna -->
                     <ul class="list-unstyled">
-                        <li><a href="<?php echo url('/'); ?>" class="text-decoration-none">Início</a></li>
-                        <li><a href="<?php echo url('index.php?route=simulador'); ?>" class="text-decoration-none">Simulador</a></li>
+                        <li><a href="<?php echo url('/'); ?>" class="nav-link p-0 text-muted">Início</a></li> <!-- Link "Início" -->
+                        <li><a href="<?php echo url('index.php?route=simulador'); ?>" class="nav-link p-0 text-muted">Simulador</a></li> <!-- Link "Simulador" -->
                         <?php if (isLoggedIn()): ?>
-                        <li><a href="<?php echo url('index.php?route=dashboard'); ?>" class="text-decoration-none">Meu Painel</a></li>
+                        <li><a href="<?php echo url('index.php?route=dashboard'); ?>" class="nav-link p-0 text-muted">Meu Painel</a></li> <!-- Link "Meu Painel" -->
                         <?php else: ?>
-                        <li><a href="<?php echo url('index.php?route=login'); ?>" class="text-decoration-none">Entrar</a></li>
+                        <li><a href="<?php echo url('index.php?route=login'); ?>" class="nav-link p-0 text-muted">Entrar</a></li> <!-- Link "Entrar" -->
                         <?php endif; ?>
                     </ul>
                 </div>
-                <div class="col-md-4">
-                    <h5>Contato</h5>
+                <div class="col-lg-4"> <!-- Coluna para informações de contato -->
+                    <h5 class="mb-3">Contato</h5> <!-- Título da coluna -->
                     <ul class="list-unstyled">
-                        <li><i class="fas fa-map-marker-alt me-2"></i> Endereço: Rua Exemplo, 123</li>
-                        <li><i class="fas fa-phone me-2"></i> Telefone: (11) 1234-5678</li>
-                        <li><i class="fas fa-envelope me-2"></i> Email: contato@concamp.com.br</li>
+                        <li class="mb-2"> <!-- Item de contato: Endereço -->
+                            <i class="fas fa-map-marker-alt me-2 text-muted"></i>
+                            <span class="text-muted">Rua Exemplo, 123</span>
+                        </li>
+                        <li class="mb-2"> <!-- Item de contato: Telefone -->
+                            <i class="fas fa-phone me-2 text-muted"></i>
+                            <span class="text-muted">(11) 1234-5678</span>
+                        </li>
+                        <li class="mb-2"> <!-- Item de contato: Email -->
+                            <i class="fas fa-envelope me-2 text-muted"></i>
+                            <span class="text-muted">contato@concamp.com.br</span>
+                        </li>
                     </ul>
                 </div>
             </div>
-            <hr>
-            <div class="row">
-                <div class="col-md-6">
-                    <p class="small text-muted mb-0">&copy; <?php echo date('Y'); ?> ConCamp. Todos os direitos reservados.</p>
-                </div>
-                <div class="col-md-6 text-md-end">
-                    <ul class="list-inline mb-0">
-                        <li class="list-inline-item">
-                            <a href="#" class="text-muted">
-                                <i class="fab fa-facebook-f"></i>
-                            </a>
-                        </li>
-                        <li class="list-inline-item">
-                            <a href="#" class="text-muted">
-                                <i class="fab fa-instagram"></i>
-                            </a>
-                        </li>
-                        <li class="list-inline-item">
-                            <a href="#" class="text-muted">
-                                <i class="fab fa-whatsapp"></i>
-                            </a>
-                        </li>
-                    </ul>
+            <hr class="my-4"> <!-- Linha horizontal separadora -->
+            <div class="footer-bottom d-flex justify-content-between align-items-center"> <!-- Container inferior do rodapé com alinhamento flexível -->
+                <p class="text-muted mb-0 small">
+                    © <?php echo date('Y'); ?> ConCamp. Todos os direitos reservados.
+                </p> <!-- Direitos autorais -->
+                <div class="footer-social-icons"> <!-- Container para ícones sociais -->
+                    <a href="#" class="text-muted me-3" aria-label="Facebook">
+                        <i class="fab fa-facebook-f"></i>
+                    </a> <!-- Ícone do Facebook -->
+                    <a href="#" class="text-muted me-3" aria-label="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a> <!-- Ícone do Instagram -->
+                    <a href="#" class="text-muted" aria-label="WhatsApp">
+                        <i class="fab fa-whatsapp"></i>
+                    </a> <!-- Ícone do WhatsApp -->
                 </div>
             </div>
         </div>
@@ -121,10 +124,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Detectar menu móvel
     const mobileMenu = document.querySelector('.mobile-bottom-menu');
     if (!mobileMenu) return;
-    
+
     // Obter a rota atual
     const currentRoute = '<?php echo $current_route ?? ($route ?? "home"); ?>';
-    
+
     // Destacar o item ativo no menu móvel
     const menuItems = mobileMenu.querySelectorAll('.mobile-bottom-menu-item');
     menuItems.forEach(item => {
@@ -132,15 +135,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (item.href && item.href.includes(currentRoute)) {
             item.classList.add('active');
         }
-        
+
         // Verificar para leads e lead-detail
-        if ((currentRoute === 'leads' || currentRoute === 'lead-detail') && 
+        if ((currentRoute === 'leads' || currentRoute === 'lead-detail') &&
             item.href && item.href.includes('route=leads')) {
             item.classList.add('active');
         }
-        
+
         // Verificar para rotas admin
-        if (currentRoute.startsWith('admin-') && 
+        if (currentRoute.startsWith('admin-') &&
             item.href && item.href.includes('admin-settings')) {
             item.classList.add('active');
         }

@@ -700,8 +700,8 @@ function initTaskOperations() {
 function completeTask(taskId) {
     showLoader();
     
-    // Enviar requisição AJAX
-    fetch('index.php?route=api-complete-task', {
+    // Enviar requisição AJAX - Use caminho relativo para a API
+    fetch(APP_URL + '/concamp/index.php?route=api-complete-task', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
@@ -709,10 +709,16 @@ function completeTask(taskId) {
         body: `task_id=${taskId}&csrf_token=${getCsrfToken()}`
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error('Erro na requisição: ' + response.status);
-        }
-        return response.json();
+        // Primeiro obter o texto da resposta
+        return response.text().then(text => {
+            try {
+                // Tentar analisar como JSON
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('Resposta não é JSON válido:', text);
+                throw new Error(`Resposta inválida do servidor. Verifique os logs para mais detalhes.`);
+            }
+        });
     })
     .then(data => {
         hideLoader();
@@ -808,8 +814,8 @@ function sendWhatsAppMessage(leadId, message, media = null) {
     
     console.log('Enviando mensagem para lead #' + leadId);
     
-    // Enviar requisição AJAX para o endpoint principal
-    fetch('index.php?route=api/message/send', {
+    // Enviar requisição AJAX - Usar caminho direto para a API
+    fetch(window.location.origin + '/api/message/send.php', {
         method: 'POST',
         body: formData
     })
@@ -858,19 +864,27 @@ function sendWhatsAppMessage(leadId, message, media = null) {
             
             // Mensagem personalizada dependendo se a mensagem foi realmente enviada via WhatsApp ou apenas registrada
             if (data.whatsapp_sent) {
-                showToast('Sucesso!', 'Mensagem enviada com sucesso via WhatsApp.', 'success');
+                showToast('Sucesso!', data.message || 'Mensagem enviada com sucesso via WhatsApp.', 'success');
             } else {
                 // Exibir mensagem informando que é necessário configurar o token
-                showToast('Atenção', 'Mensagem registrada no sistema, mas não foi enviada por WhatsApp. Configure um token de WhatsApp na página "Minha Landing Page".', 'warning');
+                showToast('Atenção', data.message || 'Mensagem registrada no sistema, mas não foi enviada por WhatsApp. Configure um token de WhatsApp.', 'warning');
             }
         } else {
-            showToast('Erro!', data.error || 'Ocorreu um erro ao enviar a mensagem.', 'danger');
+            // Construir mensagem de erro detalhada
+            let errorMsg = data.error || 'Ocorreu um erro ao enviar a mensagem.';
+            
+            // Adicionar erro de mídia se houver
+            if (data.media_error) {
+                errorMsg += '\nErro no upload da mídia: ' + data.media_error;
+            }
+            
+            showToast('Erro!', errorMsg, 'danger');
         }
     })
     .catch(error => {
         hideLoader();
         console.error('=== ERRO DE COMUNICAÇÃO COM API (Mensagem) ===');
-        console.error('URL:', 'index.php?route=api/message/send');
+        console.error('URL:', window.location.origin + '/api/message/send.php');
         console.error('Erro detalhado:', error);
         
         // Recarregar a página após erro para verificar se a mensagem foi enviada

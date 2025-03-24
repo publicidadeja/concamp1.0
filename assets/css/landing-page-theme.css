@@ -1,4 +1,4 @@
-/* 
+/*
  * ConCamp - CSS personalizado da Landing Page
  * Gerado automaticamente em 2025-03-21 03:30:39
  */
@@ -23,19 +23,19 @@
 }
 
 .lp-cta-btn {
-    background-color: #ff9800 !important;
-    border-color: #ff9800 !important;
-    color: #212529 !important;
+    background-color: var(--lp-accent); /* Usando variável para cor primária */
+    border-color: var(--lp-accent); /* Usando variável para cor da borda */
+    color: #212529;
     border-radius: 50px;
 }
 
 .lp-cta-btn:hover {
-    background-color: #e57e00 !important;
-    border-color: #e57e00 !important;
+    background-color: #e57e00; /* Cor de hover ligeiramente mais escura */
+    border-color: #e57e00; /* Cor de borda de hover ligeiramente mais escura */
 }
 
 .lp-badge {
-    background: #ff9800;
+    background: var(--lp-accent); /* Usando variável para cor de destaque */
     color: #212529;
 }
 
@@ -46,7 +46,7 @@
 
 .lp-benefit-icon {
     background-color: rgba(0, 5, 60, 0.1);
-    color: #00053c;
+    color: var(--lp-primary); /* Usando variável para cor primária */
 }
 
 /* INTEREST (Depoimentos) */
@@ -65,7 +65,7 @@
 
 /* DESIRE (Urgência) */
 .lp-urgency {
-    background-color: #00053c;
+    background-color: var(--lp-primary); /* Usando variável para cor primária */
     color: #ffffff;
 }
 
@@ -84,7 +84,7 @@
 }
 
 .lp-footer-social-item:hover {
-    background-color: #00053c;
+    background-color: var(--lp-primary); /* Usando variável para cor primária */
 }
 
 /* WhatsApp Button */
@@ -93,7 +93,41 @@
     color: #ffffff;
 }
 
+/* Forçar largura total da LP */
+.container { /* Substitua '.container' pela classe real do seu container, se for diferente */
+    max-width: 100% !important; /* Garante que a largura máxima seja 100% */
+    width: 100% !important;     /* Garante que a largura seja 100% */
+    padding-left: 0 !important;  /* Remove padding esquerdo padrão do container */
+    padding-right: 0 !important; /* Remove padding direito padrão do container */
+    margin-left: 0 !important;   /* Remove margem esquerda padrão do container */
+    margin-right: 0 !important;  /* Remove margem direita padrão do container */
+}
+
+/* Ajustes adicionais para elementos internos, se necessário */
+.lp-hero,
+.lp-benefits,
+.lp-testimonials,
+.lp-winners,
+.lp-urgency,
+.lp-footer {
+    padding-left: 15px; /* Se precisar de algum padding interno nas laterais, ajuste aqui */
+    padding-right: 15px; /* Ajuste conforme necessário */
+}
+
+/* Em telas menores, você pode querer um pouco de padding nas laterais para o conteúdo não colar nas bordas */
+@media (max-width: 767.98px) {
+    .lp-hero,
+    .lp-benefits,
+    .lp-testimonials,
+    .lp-winners,
+    .lp-urgency,
+    .lp-footer {
+        padding-left: 20px; /* Aumenta o padding em telas menores, se necessário */
+        padding-right: 20px;
+    }
+}
+
 /* Responsividade */
 @media (max-width: 991.98px) {
-    /* Manter o estilo responsivo */
+    /* Adicione estilos específicos para telas menores aqui, se necessário */
 }

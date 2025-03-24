@@ -58,31 +58,38 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
 
 ?>
 
-<div class="row mb-4">
-    <div class="col-md-6">
-        <h4>Total de leads: <?php echo $leads_data['total']; ?></h4>
+<div class="container-fluid">
+    <div class="page-header mb-3">
+        <h1>Gerenciar Leads</h1>
     </div>
-    <div class="col-md-6 text-md-end">
-        <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
-            <i class="fas fa-filter me-2"></i> Filtrar
-        </a>
-        
-        <a href="index.php?route=leads" class="btn btn-outline-secondary ms-2">
-            <i class="fas fa-sync-alt me-2"></i> Limpar Filtros
-        </a>
-    </div>
-</div>
 
-<!-- Filtros ativos -->
-<?php if (!empty($filters)): ?>
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="alert alert-info">
-            <strong>Filtros ativos:</strong>
-            
+    <div class="row mb-3 align-items-center">
+        <div class="col-md-6">
+            <p class="lead-count">
+                Total de leads: <strong><?php echo $leads_data['total']; ?></strong>
+            </p>
+        </div>
+        <div class="col-md-6 text-md-end">
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#filterModal">
+                    <i class="fas fa-filter me-2"></i> Filtrar
+                </button>
+                <a href="index.php?route=leads" class="btn btn-outline-secondary">
+                    <i class="fas fa-sync-alt me-2"></i> Limpar Filtros
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <?php if (!empty($filters)): ?>
+    <div class="filters-active mb-3">
+        <div class="alert alert-info rounded-sm mb-0">
+            <strong class="me-2"><i class="fas fa-filter"></i> Filtros ativos:</strong>
+
             <?php if (isset($filters['status'])): ?>
-                <span class="badge bg-secondary me-2">Status: 
-                    <?php 
+                <span class="badge bg-secondary me-1 filter-badge">
+                    Status:
+                    <?php
                     switch ($filters['status']) {
                         case 'new': echo 'Novo'; break;
                         case 'contacted': echo 'Contatado'; break;
@@ -94,15 +101,16 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                     ?>
                 </span>
             <?php endif; ?>
-            
+
             <?php if (isset($filters['plan_type'])): ?>
-                <span class="badge bg-secondary me-2">Tipo: 
+                <span class="badge bg-secondary me-1 filter-badge">
+                    Tipo:
                     <?php echo $filters['plan_type'] == 'car' ? 'Carro' : 'Moto'; ?>
                 </span>
             <?php endif; ?>
-            
+
             <?php if (isset($filters['seller_id']) && $is_admin): ?>
-                <?php 
+                <?php
                 $seller_name = '';
                 foreach ($sellers as $seller) {
                     if ($seller['id'] == $filters['seller_id']) {
@@ -111,33 +119,108 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                     }
                 }
                 ?>
-                <span class="badge bg-secondary me-2">Vendedor: <?php echo $seller_name; ?></span>
+                <span class="badge bg-secondary me-1 filter-badge">
+                    Vendedor: <?php echo $seller_name; ?>
+                </span>
             <?php endif; ?>
-            
+
             <?php if (isset($filters['search'])): ?>
-                <span class="badge bg-secondary me-2">Pesquisa: <?php echo $filters['search']; ?></span>
+                <span class="badge bg-secondary me-1 filter-badge">
+                    Pesquisa: <?php echo $filters['search']; ?>
+                </span>
             <?php endif; ?>
-            
+
             <?php if (isset($filters['date_from'])): ?>
-                <span class="badge bg-secondary me-2">De: <?php echo $filters['date_from']; ?></span>
+                <span class="badge bg-secondary me-1 filter-badge">
+                    De: <?php echo formatDate($filters['date_from']); ?>
+                </span>
             <?php endif; ?>
-            
+
             <?php if (isset($filters['date_to'])): ?>
-                <span class="badge bg-secondary me-2">Até: <?php echo $filters['date_to']; ?></span>
+                <span class="badge bg-secondary me-1 filter-badge">
+                    Até: <?php echo formatDate($filters['date_to']); ?>
+                </span>
             <?php endif; ?>
         </div>
     </div>
-</div>
-<?php endif; ?>
+    <?php endif; ?>
 
-<!-- Tabela de Leads -->
-<div class="table-container">
-    <?php if (empty($leads)): ?>
-        <div class="alert alert-info">Nenhum lead encontrado.</div>
-    <?php else: ?>
-        <div class="table-responsive">
-            <table class="table table-hover" id="leadsTable">
-                <thead>
+    <!-- Listagem de Leads em Formato de Cards (Mobile) - INÍCIO -->
+    <div class="leads-list-mobile">
+        <?php if (empty($leads)): ?>
+            <div class="alert alert-info">Nenhum lead encontrado.</div>
+        <?php else: ?>
+            <ul class="list-unstyled">
+                <?php foreach ($leads as $lead): ?>
+                    <li class="lead-item">
+                        <div class="card shadow-sm rounded-sm mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title"><?php echo sanitize($lead['name']); ?></h5>
+                                <h6 class="card-subtitle mb-2 text-muted">
+                                    <?php if ($lead['plan_type'] == 'car'): ?>
+                                        <span class="badge bg-primary me-1">Carro</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-info me-1">Moto</span>
+                                    <?php endif; ?>
+                                    <span class="badge status-badge bg-<?php
+                                    switch ($lead['status']) {
+                                        case 'new': echo 'primary'; break;
+                                        case 'contacted': echo 'info'; break;
+                                        case 'negotiating': echo 'warning'; break;
+                                        case 'converted': echo 'success'; break;
+                                        case 'lost': echo 'danger'; break;
+                                        default: echo 'secondary';
+                                    }
+                                    ?>"><?php
+                                    switch ($lead['status']) {
+                                        case 'new': echo 'Novo'; break;
+                                        case 'contacted': echo 'Contatado'; break;
+                                        case 'negotiating': echo 'Negociando'; break;
+                                        case 'converted': echo 'Convertido'; break;
+                                        case 'lost': echo 'Perdido'; break;
+                                        default: echo $lead['status'];
+                                    }
+                                    ?></span>
+                                </h6>
+                                <p class="card-text">
+                                    <i class="fas fa-phone me-1"></i> <?php echo sanitize($lead['phone']); ?><br>
+                                    <?php if (!empty($lead['email'])): ?>
+                                        <i class="fas fa-envelope me-1"></i> <?php echo sanitize($lead['email']); ?><br>
+                                    <?php endif; ?>
+                                    <small class="text-muted">
+                                        Tipo: <?php echo $lead['plan_type'] == 'car' ? 'Carro' : 'Moto'; ?>, Termo: <?php echo $lead['plan_term']; ?> meses, Valor: R$ <?php echo formatCurrency($lead['plan_credit']); ?>
+                                        <?php if ($lead['plan_model']): ?>, Modelo: <?php echo sanitize($lead['plan_model']); ?><?php endif; ?>
+                                        <br>
+                                        Data: <?php echo formatDate($lead['created_at']); ?>
+                                        <?php if ($lead['seller_name']): ?>
+                                            <br>Vendedor: <?php echo sanitize($lead['seller_name']); ?>
+                                        <?php endif; ?>
+                                    </small>
+                                </p>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="index.php?route=lead-detail&id=<?php echo $lead['id']; ?>" class="btn btn-sm btn-info action-button" data-bs-toggle="tooltip" title="Ver detalhes">
+                                        <i class="fas fa-eye"></i> Detalhes
+                                    </a>
+                                    <a href="https://wa.me/<?php echo $lead['phone']; ?>" target="_blank" class="btn btn-sm btn-success action-button" data-bs-toggle="tooltip" title="WhatsApp">
+                                        <i class="fab fa-whatsapp"></i> WhatsApp
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+    </div>
+    <!-- Listagem de Leads em Formato de Cards (Mobile) - FIM -->
+
+    <!-- Tabela de Leads (Desktop/Tablet) - MANTER, MAS VAMOS ESCONDER EM MOBILE -->
+    <div class="table-responsive leads-table-desktop">
+        <?php if (empty($leads)): ?>
+            <div class="alert alert-info">Nenhum lead encontrado.</div>
+        <?php else: ?>
+            <table class="table table-hover bg-white rounded shadow-sm">
+                <thead class="table-light">
                     <tr>
                         <th>ID</th>
                         <th>Nome</th>
@@ -146,7 +229,7 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                         <th>Valor</th>
                         <th>Status</th>
                         <th>Data</th>
-                        <th>Ações</th>
+                        <th class="text-center">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -179,7 +262,7 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                             </td>
                             <td>
                                 <div class="dropdown">
-                                    <span class="badge bg-<?php 
+                                    <span class="badge status-badge bg-<?php // Classe 'status-badge' para estilo CSS
                                     switch ($lead['status']) {
                                         case 'new': echo 'primary'; break;
                                         case 'contacted': echo 'info'; break;
@@ -189,7 +272,7 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                                         default: echo 'secondary';
                                     }
                                     ?>" data-lead-id="<?php echo $lead['id']; ?>" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <?php 
+                                        <?php
                                         switch ($lead['status']) {
                                             case 'new': echo 'Novo'; break;
                                             case 'contacted': echo 'Contatado'; break;
@@ -208,20 +291,19 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                                         <li><a class="dropdown-item update-status-btn" href="#" data-lead-id="<?php echo $lead['id']; ?>" data-status="lost">Perdido</a></li>
                                     </ul>
                                 </div>
-                                
                                 <?php if ($lead['seller_name']): ?>
-                                    <div class="small text-muted mt-1">
+                                    <div class="small text-muted mt-1 seller-info">
                                         <i class="fas fa-user-tie me-1"></i> <?php echo sanitize($lead['seller_name']); ?>
                                     </div>
                                 <?php endif; ?>
                             </td>
-                            <td><?php echo formatDate($lead['created_at']); ?></td>
-                            <td>
-                                <div class="d-flex gap-1">
-                                    <a href="index.php?route=lead-detail&id=<?php echo $lead['id']; ?>" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver detalhes">
+                            <td><span class="date-cell"><?php echo formatDate($lead['created_at']); ?></span></td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-1 action-buttons">
+                                    <a href="index.php?route=lead-detail&id=<?php echo $lead['id']; ?>" class="btn btn-sm btn-info action-button" data-bs-toggle="tooltip" title="Ver detalhes">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="https://wa.me/<?php echo $lead['phone']; ?>" target="_blank" class="btn btn-sm btn-success" data-bs-toggle="tooltip" title="WhatsApp">
+                                    <a href="https://wa.me/<?php echo $lead['phone']; ?>" target="_blank" class="btn btn-sm btn-success action-button" data-bs-toggle="tooltip" title="WhatsApp">
                                         <i class="fab fa-whatsapp"></i>
                                     </a>
                                 </div>
@@ -230,45 +312,43 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                     <?php endforeach; ?>
                 </tbody>
             </table>
-        </div>
-        
-        <!-- Paginação -->
-        <?php if ($pages > 1): ?>
-            <nav aria-label="Page navigation" class="mt-4">
-                <ul class="pagination justify-content-center">
-                    <?php if ($page > 1): ?>
-                        <li class="page-item">
-                            <a class="page-link" href="index.php?route=leads&page=<?php echo $page - 1; ?><?php echo http_build_query(array_filter($filters)); ?>" aria-label="Previous">
-                                <span aria-hidden="true">&laquo;</span>
-                            </a>
-                        </li>
-                    <?php endif; ?>
-                    
-                    <?php for ($i = 1; $i <= $pages; $i++): ?>
-                        <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                            <a class="page-link" href="index.php?route=leads&page=<?php echo $i; ?><?php echo http_build_query(array_filter($filters)); ?>">
-                                <?php echo $i; ?>
-                            </a>
-                        </li>
-                    <?php endfor; ?>
-                    
-                    <?php if ($page < $pages): ?>
-                        <li class="page-item">
-                            <a class="page-link" href="index.php?route=leads&page=<?php echo $page + 1; ?><?php echo http_build_query(array_filter($filters)); ?>" aria-label="Next">
-                                <span aria-hidden="true">&raquo;</span>
-                            </a>
-                        </li>
-                    <?php endif; ?>
-                </ul>
-            </nav>
         <?php endif; ?>
+    </div>
+
+    <?php if ($pages > 1): ?>
+        <nav aria-label="Page navigation" class="mt-3">
+            <ul class="pagination justify-content-center">
+                <?php if ($page > 1): ?>
+                    <li class="page-item">
+                        <a class="page-link" href="index.php?route=leads&page=<?php echo $page - 1; ?><?php echo http_build_query(array_filter($filters)); ?>" aria-label="Anterior">
+                            <span aria-hidden="true">«</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+                <?php for ($i = 1; $i <= $pages; $i++): ?>
+                    <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
+                        <a class="page-link" href="index.php?route=leads&page=<?php echo $i; ?><?php echo http_build_query(array_filter($filters)); ?>">
+                            <?php echo $i; ?>
+                        </a>
+                    </li>
+                <?php endfor; ?>
+
+                <?php if ($page < $pages): ?>
+                    <li class="page-item">
+                        <a class="page-link" href="index.php?route=leads&page=<?php echo $page + 1; ?><?php echo http_build_query(array_filter($filters)); ?>" aria-label="Próximo">
+                            <span aria-hidden="true">»</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+            </ul>
+        </nav>
     <?php endif; ?>
 </div>
 
-<!-- Modal de Filtros -->
 <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
+        <div class="modal-content rounded-sm">
             <div class="modal-header">
                 <h5 class="modal-title" id="filterModalLabel">Filtrar Leads</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -276,10 +356,10 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
             <div class="modal-body">
                 <form action="index.php" method="get" class="filter-form" data-route="leads">
                     <input type="hidden" name="route" value="leads">
-                    
+
                     <div class="mb-3">
                         <label for="status" class="form-label">Status</label>
-                        <select class="form-select" id="status" name="status">
+                        <select class="form-select rounded-sm" id="status" name="status">
                             <option value="">Todos</option>
                             <option value="new" <?php echo (isset($filters['status']) && $filters['status'] === 'new') ? 'selected' : ''; ?>>Novo</option>
                             <option value="contacted" <?php echo (isset($filters['status']) && $filters['status'] === 'contacted') ? 'selected' : ''; ?>>Contatado</option>
@@ -288,20 +368,20 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                             <option value="lost" <?php echo (isset($filters['status']) && $filters['status'] === 'lost') ? 'selected' : ''; ?>>Perdido</option>
                         </select>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="plan_type" class="form-label">Tipo de Veículo</label>
-                        <select class="form-select" id="plan_type" name="plan_type">
+                        <select class="form-select rounded-sm" id="plan_type" name="plan_type">
                             <option value="">Todos</option>
                             <option value="car" <?php echo (isset($filters['plan_type']) && $filters['plan_type'] === 'car') ? 'selected' : ''; ?>>Carro</option>
                             <option value="motorcycle" <?php echo (isset($filters['plan_type']) && $filters['plan_type'] === 'motorcycle') ? 'selected' : ''; ?>>Moto</option>
                         </select>
                     </div>
-                    
+
                     <?php if ($is_admin && !empty($sellers)): ?>
                     <div class="mb-3">
                         <label for="seller_id" class="form-label">Vendedor</label>
-                        <select class="form-select" id="seller_id" name="seller_id">
+                        <select class="form-select rounded-sm" id="seller_id" name="seller_id">
                             <option value="">Todos</option>
                             <?php foreach ($sellers as $seller): ?>
                                 <option value="<?php echo $seller['id']; ?>" <?php echo (isset($filters['seller_id']) && $filters['seller_id'] == $seller['id']) ? 'selected' : ''; ?>>
@@ -311,29 +391,38 @@ $sellers = $is_admin ? getUsersByRole('seller') : [];
                         </select>
                     </div>
                     <?php endif; ?>
-                    
+
                     <div class="mb-3">
                         <label for="search" class="form-label">Pesquisar</label>
-                        <input type="text" class="form-control" id="search" name="search" placeholder="Nome, e-mail ou telefone" value="<?php echo isset($filters['search']) ? $filters['search'] : ''; ?>">
+                        <input type="text" class="form-control rounded-sm" id="search" name="search" placeholder="Nome, e-mail ou telefone" value="<?php echo isset($filters['search']) ? $filters['search'] : ''; ?>">
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="date_from" class="form-label">Data Inicial</label>
-                            <input type="date" class="form-control" id="date_from" name="date_from" value="<?php echo isset($filters['date_from']) ? $filters['date_from'] : ''; ?>">
+                            <input type="date" class="form-control rounded-sm" id="date_from" name="date_from" value="<?php echo isset($filters['date_from']) ? $filters['date_from'] : ''; ?>">
                         </div>
-                        
+
                         <div class="col-md-6 mb-3">
                             <label for="date_to" class="form-label">Data Final</label>
-                            <input type="date" class="form-control" id="date_to" name="date_to" value="<?php echo isset($filters['date_to']) ? $filters['date_to'] : ''; ?>">
+                            <input type="date" class="form-control rounded-sm" id="date_to" name="date_to" value="<?php echo isset($filters['date_to']) ? $filters['date_to'] : ''; ?>">
                         </div>
                     </div>
-                    
+
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
+                        <button type="submit" class="btn btn-primary rounded-sm">Aplicar Filtros</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    });
+</script>

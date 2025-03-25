@@ -70,6 +70,22 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_settings') {
                 if (in_array($key, ['primary_color', 'secondary_color', 'header_color', 'logo_url', 'dark_mode'])) {
                     error_log("Salvando configuração $key = $value");
                 }
+                
+                // Salvar também o token do WhatsApp no perfil do admin atual
+                if ($key === 'whatsapp_token' && !empty($value)) {
+                    $current_user = getCurrentUser();
+                    if ($current_user && $current_user['role'] === 'admin') {
+                        $admin_id = $current_user['id'];
+                        error_log("Salvando token WhatsApp também para o admin ID: $admin_id");
+                        
+                        // Atualizar no perfil do usuário admin
+                        $stmt = $conn->prepare("UPDATE users SET whatsapp_token = :token, updated_at = NOW() WHERE id = :id");
+                        $stmt->execute([
+                            'token' => $value,
+                            'id' => $admin_id
+                        ]);
+                    }
+                }
             }
             
             // Atualizar a versão do tema para forçar o recarregamento do CSS

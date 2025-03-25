@@ -281,10 +281,14 @@ function getSetting($key, $default = null) {
 function setSetting($key, $value) {
     static $settings_cache = [];
     $conn = getConnection();
+    $transaction_started = false;
     
     try {
         // Usar transação para garantir consistência
-        $conn->beginTransaction();
+        if (!$conn->inTransaction()) {
+            $conn->beginTransaction();
+            $transaction_started = true;
+        }
         
         // Verificar se a configuração já existe
         $stmt = $conn->prepare("SELECT id FROM settings WHERE setting_key = :key");
@@ -309,10 +313,14 @@ function setSetting($key, $value) {
             unset($settings_cache[$key]);
         }
         
-        $conn->commit();
+        // Fazer commit apenas se iniciamos a transação
+        if ($transaction_started) {
+            $conn->commit();
+        }
         return $result;
     } catch (PDOException $e) {
-        if ($conn->inTransaction()) {
+        // Fazer rollback apenas se iniciamos a transação
+        if ($transaction_started && $conn->inTransaction()) {
             $conn->rollBack();
         }
         error_log("Erro ao salvar configuração: " . $e->getMessage());
@@ -386,10 +394,23 @@ function getUsers($filters = []) {
 
 /**
  * Obter usuários com perfil específico
+ * 
+ * @param string $role O perfil do usuário a ser filtrado
+ * @param bool $onlyActive Se verdadeiro, retorna apenas usuários ativos
+ * @return array Lista de usuários com o perfil especificado
  */
-function getUsersByRole($role) {
+function getUsersByRole($role, $onlyActive = true) {
     $conn = getConnection();
-    $stmt = $conn->prepare("SELECT id, name, email FROM users WHERE role = :role AND status = 'active' ORDER BY name");
+    
+    $sql = "SELECT id, name, email, whatsapp_token FROM users WHERE role = :role";
+    
+    if ($onlyActive) {
+        $sql .= " AND status = 'active'";
+    }
+    
+    $sql .= " ORDER BY name";
+    
+    $stmt = $conn->prepare($sql);
     $stmt->execute(['role' => $role]);
     
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -462,7 +483,9 @@ function getLeads($filters = [], $page = 1, $per_page = 15) {
     }
     
     if (isset($filters['search']) && !empty($filters['search'])) {
+        $search = '%' . $filters['search'] . '%';
         $count_sql .= " AND (l.name LIKE :search OR l.email LIKE :search OR l.phone LIKE :search)";
+        $params['search'] = $search;
     }
     
     if (isset($filters['date_from']) && !empty($filters['date_from'])) {
@@ -473,8 +496,55 @@ function getLeads($filters = [], $page = 1, $per_page = 15) {
         $count_sql .= " AND DATE(l.created_at) <= :date_to";
     }
     
+    // Debug para encontrar o problema
+    error_log("Count SQL: " . $count_sql);
+    error_log("Params: " . json_encode($params));
+    
+    // Garantir que todos os parâmetros na query também estejam no array de parâmetros
     $stmt = $conn->prepare($count_sql);
-    $stmt->execute($params);
+    
+    // Vamos criar um novo conjunto de parâmetros apenas para os placeholders presentes na consulta
+    $exec_params = [];
+    
+    // Encontrar todos os placeholders na consulta
+    preg_match_all('/:([a-zA-Z0-9_]+)/', $count_sql, $matches);
+    $placeholders = $matches[1];
+    
+    // Para cada placeholder na consulta, garantir que temos um valor
+    foreach ($placeholders as $placeholder) {
+        if (isset($params[$placeholder])) {
+            // Se temos o parâmetro, use-o
+            $exec_params[$placeholder] = $params[$placeholder];
+        } else {
+            error_log("Parâmetro ausente na contagem: " . $placeholder);
+            
+            // Adicionar valores padrão para casos específicos
+            if ($placeholder === 'search' && isset($filters['search']) && !empty($filters['search'])) {
+                $exec_params[$placeholder] = '%' . $filters['search'] . '%';
+            } else if ($placeholder === 'status' && isset($filters['status'])) {
+                $exec_params[$placeholder] = $filters['status'];
+            } else if ($placeholder === 'plan_type' && isset($filters['plan_type'])) {
+                $exec_params[$placeholder] = $filters['plan_type'];
+            } else if ($placeholder === 'seller_id' && isset($filters['seller_id'])) {
+                $exec_params[$placeholder] = $filters['seller_id'];
+            } else if ($placeholder === 'date_from' && isset($filters['date_from'])) {
+                $exec_params[$placeholder] = $filters['date_from'];
+            } else if ($placeholder === 'date_to' && isset($filters['date_to'])) {
+                $exec_params[$placeholder] = $filters['date_to'];
+            } else {
+                // Se não podemos fornecer um valor, modificar a consulta para remover esta condição
+                $count_sql = str_replace(" AND l.name LIKE :search OR l.email LIKE :search OR l.phone LIKE :search", "", $count_sql);
+                error_log("Consulta modificada para: " . $count_sql);
+            }
+        }
+    }
+    
+    error_log("Consulta final para contagem: " . $count_sql);
+    error_log("Parâmetros para execução: " . json_encode($exec_params));
+    
+    // Preparar novamente com a consulta possivelmente modificada
+    $stmt = $conn->prepare($count_sql);
+    $stmt->execute($exec_params);
     $total = $stmt->fetchColumn();
     
     // Calcular total de páginas
@@ -488,9 +558,48 @@ function getLeads($filters = [], $page = 1, $per_page = 15) {
     $sql .= " ORDER BY l.created_at DESC";
     $sql .= " LIMIT " . (($page - 1) * $per_page) . ", " . $per_page;
     
-    // Executar consulta principal
+    // Executar consulta principal - usar o mesmo método de validação de parâmetros
     $stmt = $conn->prepare($sql);
-    $stmt->execute($params);
+    
+    // Vamos verificar os parâmetros para a consulta principal também
+    $main_exec_params = [];
+    preg_match_all('/:([a-zA-Z0-9_]+)/', $sql, $main_matches);
+    $main_placeholders = $main_matches[1];
+    
+    // Verificar cada placeholder necessário
+    foreach ($main_placeholders as $placeholder) {
+        if (isset($params[$placeholder])) {
+            $main_exec_params[$placeholder] = $params[$placeholder];
+        } else {
+            error_log("Parâmetro ausente na consulta principal: " . $placeholder);
+            
+            // Adicionar valores padrão para casos específicos
+            if ($placeholder === 'search' && isset($filters['search']) && !empty($filters['search'])) {
+                $main_exec_params[$placeholder] = '%' . $filters['search'] . '%';
+            } else if ($placeholder === 'status' && isset($filters['status'])) {
+                $main_exec_params[$placeholder] = $filters['status'];
+            } else if ($placeholder === 'plan_type' && isset($filters['plan_type'])) {
+                $main_exec_params[$placeholder] = $filters['plan_type'];
+            } else if ($placeholder === 'seller_id' && isset($filters['seller_id'])) {
+                $main_exec_params[$placeholder] = $filters['seller_id'];
+            } else if ($placeholder === 'date_from' && isset($filters['date_from'])) {
+                $main_exec_params[$placeholder] = $filters['date_from'];
+            } else if ($placeholder === 'date_to' && isset($filters['date_to'])) {
+                $main_exec_params[$placeholder] = $filters['date_to'];
+            } else {
+                // Modificar a consulta para remover esta condição
+                $sql = str_replace(" AND (l.name LIKE :search OR l.email LIKE :search OR l.phone LIKE :search)", "", $sql);
+                error_log("Consulta principal modificada para: " . $sql);
+            }
+        }
+    }
+    
+    error_log("Consulta principal final: " . $sql);
+    error_log("Parâmetros para execução principal: " . json_encode($main_exec_params));
+    
+    // Preparar novamente com a consulta possivelmente modificada
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($main_exec_params);
     $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     return [
@@ -525,27 +634,36 @@ function getLeadById($id) {
 function getLeadFollowups($lead_id, $page = 1, $limit = 10) {
     $conn = getConnection();
     
-    // Verificar se a tabela followups existe
+    // Verificar se a tabela follow_ups existe
     try {
-        $check = $conn->query("SHOW TABLES LIKE 'followups'");
+        $check = $conn->query("SHOW TABLES LIKE 'follow_ups'");
         if ($check->rowCount() == 0) {
-            // Tabela não existe, criar a tabela
-            $conn->exec("CREATE TABLE IF NOT EXISTS `followups` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `lead_id` int(11) NOT NULL,
-                `user_id` int(11) NOT NULL,
-                `type` enum('note','task','reminder','call','email','whatsapp') NOT NULL DEFAULT 'note',
-                `content` text NOT NULL,
-                `status` enum('pending','completed','canceled') DEFAULT 'pending',
-                `due_date` datetime DEFAULT NULL,
-                `completed_at` datetime DEFAULT NULL,
-                `created_at` datetime NOT NULL,
-                PRIMARY KEY (`id`),
-                KEY `lead_id` (`lead_id`),
-                KEY `user_id` (`user_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-            
-            error_log("Tabela followups criada automaticamente.");
+            // Verificar se existe a tabela antiga
+            $check2 = $conn->query("SHOW TABLES LIKE 'followups'");
+            if ($check2->rowCount() > 0) {
+                // Renomear a tabela antiga para a nova
+                $conn->exec("RENAME TABLE `followups` TO `follow_ups`");
+                error_log("Tabela 'followups' renomeada para 'follow_ups' para consistência.");
+            } else {
+                // Tabela não existe, criar a tabela
+                $conn->exec("CREATE TABLE IF NOT EXISTS `follow_ups` (
+                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `lead_id` int(11) NOT NULL,
+                    `user_id` int(11) NOT NULL,
+                    `type` enum('note','task','reminder','call','email','whatsapp') NOT NULL DEFAULT 'note',
+                    `content` text NOT NULL,
+                    `status` enum('pending','completed','canceled') DEFAULT 'pending',
+                    `due_date` datetime DEFAULT NULL,
+                    `completed_at` datetime DEFAULT NULL,
+                    `created_at` datetime NOT NULL,
+                    `notified` tinyint(4) NOT NULL DEFAULT '0',
+                    PRIMARY KEY (`id`),
+                    KEY `lead_id` (`lead_id`),
+                    KEY `user_id` (`user_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                
+                error_log("Tabela follow_ups criada automaticamente.");
+            }
             
             // Retornar array vazio pois não há dados ainda
             return [
@@ -555,7 +673,7 @@ function getLeadFollowups($lead_id, $page = 1, $limit = 10) {
             ];
         }
     } catch (PDOException $e) {
-        error_log("Erro ao verificar ou criar tabela followups: " . $e->getMessage());
+        error_log("Erro ao verificar ou criar tabela follow_ups: " . $e->getMessage());
         return [
             'follow_ups' => [],
             'total' => 0,
@@ -568,7 +686,7 @@ function getLeadFollowups($lead_id, $page = 1, $limit = 10) {
         $offset = ($page - 1) * $limit;
         
         // Consulta para contar o total de registros
-        $count_sql = "SELECT COUNT(*) FROM followups WHERE lead_id = :lead_id";
+        $count_sql = "SELECT COUNT(*) FROM follow_ups WHERE lead_id = :lead_id";
         $count_stmt = $conn->prepare($count_sql);
         $count_stmt->execute(['lead_id' => $lead_id]);
         $total = $count_stmt->fetchColumn();
@@ -579,7 +697,7 @@ function getLeadFollowups($lead_id, $page = 1, $limit = 10) {
         // Consulta principal com paginação
         $sql = "SELECT 
             f.*, u.name as user_name
-        FROM followups f
+        FROM follow_ups f
         LEFT JOIN users u ON f.user_id = u.id
         WHERE f.lead_id = :lead_id
         ORDER BY f.created_at DESC
@@ -614,30 +732,39 @@ function getLeadFollowups($lead_id, $page = 1, $limit = 10) {
 function addLeadFollowup($lead_id, $user_id, $type, $content, $due_date = null) {
     $conn = getConnection();
     
-    // Verificar se a tabela followups existe
+    // Verificar se a tabela follow_ups existe
     try {
-        $check = $conn->query("SHOW TABLES LIKE 'followups'");
+        $check = $conn->query("SHOW TABLES LIKE 'follow_ups'");
         if ($check->rowCount() == 0) {
-            // Tabela não existe, criar a tabela
-            $conn->exec("CREATE TABLE IF NOT EXISTS `followups` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `lead_id` int(11) NOT NULL,
-                `user_id` int(11) NOT NULL,
-                `type` enum('note','task','reminder','call','email','whatsapp') NOT NULL DEFAULT 'note',
-                `content` text NOT NULL,
-                `status` enum('pending','completed','canceled') DEFAULT 'pending',
-                `due_date` datetime DEFAULT NULL,
-                `completed_at` datetime DEFAULT NULL,
-                `created_at` datetime NOT NULL,
-                PRIMARY KEY (`id`),
-                KEY `lead_id` (`lead_id`),
-                KEY `user_id` (`user_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-            
-            error_log("Tabela followups criada automaticamente ao adicionar novo followup.");
+            // Tabela não existe, verificar se existe a antiga 'followups'
+            $check2 = $conn->query("SHOW TABLES LIKE 'followups'");
+            if ($check2->rowCount() > 0) {
+                // Renomear a tabela antiga para a nova
+                $conn->exec("RENAME TABLE `followups` TO `follow_ups`");
+                error_log("Tabela 'followups' renomeada para 'follow_ups' para consistência.");
+            } else {
+                // Criar a tabela se não existir
+                $conn->exec("CREATE TABLE IF NOT EXISTS `follow_ups` (
+                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `lead_id` int(11) NOT NULL,
+                    `user_id` int(11) NOT NULL,
+                    `type` enum('note','task','reminder','call','email','whatsapp') NOT NULL DEFAULT 'note',
+                    `content` text NOT NULL,
+                    `status` enum('pending','completed','canceled') DEFAULT 'pending',
+                    `due_date` datetime DEFAULT NULL,
+                    `completed_at` datetime DEFAULT NULL,
+                    `created_at` datetime NOT NULL,
+                    `notified` tinyint(4) NOT NULL DEFAULT '0',
+                    PRIMARY KEY (`id`),
+                    KEY `lead_id` (`lead_id`),
+                    KEY `user_id` (`user_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                
+                error_log("Tabela follow_ups criada automaticamente ao adicionar novo followup.");
+            }
         }
     } catch (PDOException $e) {
-        error_log("Erro ao verificar ou criar tabela followups: " . $e->getMessage());
+        error_log("Erro ao verificar ou criar tabela follow_ups: " . $e->getMessage());
         return [
             'success' => false,
             'error' => 'Erro ao verificar estrutura do banco de dados: ' . $e->getMessage()
@@ -645,7 +772,8 @@ function addLeadFollowup($lead_id, $user_id, $type, $content, $due_date = null) 
     }
     
     try {
-        $sql = "INSERT INTO followups 
+        // Usar a tabela follow_ups em vez de followups para consistência
+        $sql = "INSERT INTO follow_ups 
             (lead_id, user_id, type, content, due_date, created_at) 
         VALUES 
             (:lead_id, :user_id, :type, :content, :due_date, NOW())";
@@ -1009,7 +1137,33 @@ function sendWhatsAppMessage($number, $message, $media = null, $custom_token = n
 
     try {
         // Verificar token (usar token personalizado ou global)
-        $token = $custom_token ? $custom_token : getSetting('whatsapp_api_token', '');
+        $token = '';
+        
+        // 1. Primeiro verificar se foi fornecido um token personalizado
+        if (!empty($custom_token)) {
+            $token = $custom_token;
+            error_log('Usando token personalizado fornecido diretamente para esta mensagem');
+        } 
+        // 2. Se não, verificar se o usuário atual é admin ou vendedor
+        else {
+            $current_user = getCurrentUser();
+            
+            if ($current_user) {
+                if ($current_user['role'] === 'seller' && !empty($current_user['whatsapp_token'])) {
+                    // Usar token do vendedor
+                    $token = $current_user['whatsapp_token'];
+                    error_log('Usando token do vendedor: ' . $current_user['name'] . ' (ID: ' . $current_user['id'] . ')');
+                } else {
+                    // Para admin, usar token das configurações globais
+                    $token = getSetting('whatsapp_token', '');
+                    error_log('Usando token global das configurações (usuário é admin ou vendedor sem token próprio)');
+                }
+            } else {
+                // Sem usuário atual, usar token global
+                $token = getSetting('whatsapp_token', '');
+                error_log('Usando token global das configurações (sem usuário autenticado)');
+            }
+        }
         
         if (empty($token)) {
             error_log('Erro: Token da API WhatsApp não configurado');
@@ -2169,56 +2323,100 @@ function getUserById($id) {
 /**
  * Atualizar um usuário existente
  * 
- * @param int $id ID do usuário a ser atualizado
- * @param array $data Array associativo com os dados para atualização
+ * @param int $id ID do usuário
+ * @param array $data Dados a serem atualizados
  * @return array Resultado da operação
  */
 function updateUser($id, $data) {
     $conn = getConnection();
     
-    // Verificar se o usuário existe
-    $stmt = $conn->prepare("SELECT id FROM users WHERE id = :id");
-    $stmt->execute(['id' => $id]);
-    
-    if ($stmt->rowCount() === 0) {
-        return [
-            'success' => false,
-            'error' => 'Usuário não encontrado.'
+    try {
+        // Campos permitidos para atualização
+        $allowed_fields = [
+            'name',
+            'email',
+            'password',
+            'role',
+            'status',
+            'landing_page_name',
+            'whatsapp_token',
+            'phone'
         ];
-    }
-    
-    // Construir SQL de atualização
-    $fields = [];
-    $params = ['id' => $id];
-    
-    foreach ($data as $key => $value) {
-        // Tratamento especial para senha
-        if ($key === 'password' && !empty($value)) {
-            $params[$key] = password_hash($value, PASSWORD_DEFAULT);
-        } else {
-            $params[$key] = $value;
+        
+        // Construir query de atualização
+        $updates = [];
+        $params = ['id' => $id];
+        
+        foreach ($allowed_fields as $field) {
+            if (isset($data[$field])) {
+                // Tratamento especial para senha
+                if ($field === 'password' && !empty($data[$field])) {
+                    $updates[] = "$field = :$field";
+                    $params[$field] = password_hash($data[$field], PASSWORD_DEFAULT);
+                } 
+                // Tratamento para outros campos
+                else if ($field !== 'password') {
+                    $updates[] = "$field = :$field";
+                    $params[$field] = $data[$field];
+                }
+            }
         }
         
-        $fields[] = "{$key} = :{$key}";
-    }
-    
-    // Adicionar data de atualização
-    $fields[] = "updated_at = NOW()";
-    
-    // Executar atualização
-    $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = :id";
-    $stmt = $conn->prepare($sql);
-    $result = $stmt->execute($params);
-    
-    if ($result) {
-        return [
-            'success' => true
-        ];
-    } else {
+        // Se não houver campos para atualizar
+        if (empty($updates)) {
+            return [
+                'success' => false,
+                'error' => 'Nenhum campo para atualizar.'
+            ];
+        }
+        
+        // Adicionar updated_at
+        $updates[] = "updated_at = NOW()";
+        
+        // Construir e executar query
+        $sql = "UPDATE users SET " . implode(', ', $updates) . " WHERE id = :id";
+        $stmt = $conn->prepare($sql);
+        $result = $stmt->execute($params);
+        
+        if ($result) {
+            return [
+                'success' => true,
+                'message' => 'Usuário atualizado com sucesso.'
+            ];
+        } else {
+            return [
+                'success' => false,
+                'error' => 'Erro ao atualizar usuário.'
+            ];
+        }
+    } catch (PDOException $e) {
+        error_log("Erro ao atualizar usuário: " . $e->getMessage());
         return [
             'success' => false,
-            'error' => 'Erro ao atualizar usuário.'
+            'error' => 'Erro ao atualizar usuário: ' . $e->getMessage()
         ];
+    }
+}
+
+/**
+ * Atualizar token do WhatsApp de um usuário
+ * 
+ * @param int $user_id ID do usuário
+ * @param string $token Token do WhatsApp
+ * @return bool Sucesso ou falha
+ */
+function updateUserWhatsAppToken($user_id, $token) {
+    $conn = getConnection();
+    
+    try {
+        $stmt = $conn->prepare("UPDATE users SET whatsapp_token = :token, updated_at = NOW() WHERE id = :id");
+        return $stmt->execute([
+            'id' => $user_id,
+            'token' => $token
+        ]);
+    } catch (PDOException $e) {
+        error_log("Erro ao atualizar token WhatsApp: " . $e->getMessage());
+        return false;
     }
 }
 
@@ -2540,9 +2738,19 @@ function sendWhatsAppMessage($phone, $message, $media = null, $token = null) {
         // Formatar número de telefone (remover caracteres não numéricos)
         $phone = preg_replace('/[^0-9]/', '', $phone);
 
-        // Se não foi fornecido token, tentar obter o token global
+        // Se não foi fornecido token, verificar usuario atual
         if (empty($token)) {
-            $token = getSetting('whatsapp_api_token');
+            $current_user = getCurrentUser();
+            
+            if ($current_user && $current_user['role'] === 'seller' && !empty($current_user['whatsapp_token'])) {
+                // Usar token do vendedor atual
+                $token = $current_user['whatsapp_token'];
+                error_log("Usando token do vendedor: " . $current_user['id']);
+            } else {
+                // Usar token global para admin ou qualquer outro caso
+                $token = getSetting('whatsapp_token');
+                error_log("Usando token global das configurações");
+            }
         }
 
         // Verificar se existe token configurado

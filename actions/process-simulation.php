@@ -54,6 +54,16 @@ $leadData = [
     'other_installments' => $other_installments
 ];
 
+// Verificar se existe vendedor disponível para atribuir automaticamente
+$seller_id = 0;
+$available_sellers = getUsersByRole('seller', true); // Obter vendedores ativos
+if (!empty($available_sellers)) {
+    // Selecionar um vendedor aleatoriamente ou pelo critério definido
+    $selected_seller = $available_sellers[array_rand($available_sellers)];
+    $seller_id = $selected_seller['id'];
+    $leadData['seller_id'] = $seller_id;
+}
+
 // Salvar lead no banco de dados
 $result = saveLead($leadData);
 
@@ -62,6 +72,43 @@ if (!$result['success']) {
     $_SESSION['error_message'] = 'Ocorreu um erro ao processar sua simulação. Por favor, tente novamente.';
     header('Location: index.php?route=simulador');
     exit;
+}
+
+// Lead ID para uso posterior
+$lead_id = $result['lead_id'];
+
+// Se temos um vendedor atribuído, forçar a atribuição e verificar
+if ($seller_id > 0) {
+    $seller = getUserById($seller_id);
+    if ($seller) {
+        // Forçar uma atualização direta na tabela leads para garantir a atribuição
+        $conn = getConnection();
+        
+        // Verificar estado atual
+        $stmt = $conn->prepare("SELECT seller_id FROM leads WHERE id = :id");
+        $stmt->execute(['id' => $lead_id]);
+        $lead = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Log para debug
+        error_log("Lead ID: " . $lead_id . " - Vendedor atual: " . ($lead['seller_id'] ?? 'nenhum') . " - Novo vendedor: " . $seller_id);
+        
+        // Atualizar o vendedor diretamente na tabela
+        $stmt = $conn->prepare("UPDATE leads SET seller_id = :seller_id WHERE id = :id");
+        $result = $stmt->execute(['id' => $lead_id, 'seller_id' => $seller_id]);
+        
+        // Verificar resultado da atualização
+        error_log("Atualização do vendedor: " . ($result ? "SUCESSO" : "FALHA"));
+        
+        // Verificar após a atualização para confirmar
+        $stmt = $conn->prepare("SELECT seller_id FROM leads WHERE id = :id");
+        $stmt->execute(['id' => $lead_id]);
+        $updatedLead = $stmt->fetch(PDO::FETCH_ASSOC);
+        error_log("Lead ID: " . $lead_id . " - Vendedor após atualização: " . ($updatedLead['seller_id'] ?? 'nenhum'));
+        
+        // Registrar na timeline
+        $content = "Lead atribuído automaticamente para o vendedor: " . $seller['name'];
+        addFollowUp($lead_id, 1, 'note', $content); // Admin ID = 1
+    }
 }
 
 // Enviar mensagem no WhatsApp
@@ -88,8 +135,23 @@ if ($template) {
     // Substituir variáveis no template
     $message = processMessageTemplate($template['content'], $messageData);
     
-    // Enviar via WhatsApp API
-    $result = sendWhatsAppMessage($phone, $message);
+    // Verificar se ainda existem placeholders no formato {variavel} e fazer substituição direta
+    foreach ($messageData as $key => $value) {
+        $message = str_replace('{' . $key . '}', $value, $message);
+    }
+    
+    // Log da mensagem processada
+    error_log("Mensagem após processamento de variáveis: " . substr($message, 0, 100) . "...");
+    
+    // Obter o token do admin (ID 1)
+    $admin = getUserById(1);
+    $admin_token = $admin['whatsapp_token'] ?? '';
+    
+    // Log para depuração
+    error_log("Admin token para envio: " . ($admin_token ? substr($admin_token, 0, 3) . '...' : 'Não encontrado'));
+    
+    // Enviar via WhatsApp API passando explicitamente o token do admin
+    $result = sendWhatsAppMessage($phone, $message, null, $admin_token);
     
     // Registrar mensagem enviada
     if (isset($result['success']) && $result['success']) {
